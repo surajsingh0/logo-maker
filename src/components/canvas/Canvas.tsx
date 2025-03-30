@@ -19,6 +19,7 @@ interface CanvasProps {
   onElementPointUpdate: (elementId: string, pointIndex: number, newPosition: Position) => void;
   onSelectMultipleElements: (elementIds: string[]) => void;
   onDragMultipleElements: (dx: number, dy: number) => void;
+  onZoomChange: (newZoomLevel: number) => void;
 }
 
 interface ResizeStartState {
@@ -47,6 +48,7 @@ const Canvas: React.FC<CanvasProps> = ({
   onElementPointUpdate,
   onSelectMultipleElements,
   onDragMultipleElements,
+  onZoomChange,
 }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -61,11 +63,30 @@ const Canvas: React.FC<CanvasProps> = ({
   const [marqueeStartPos, setMarqueeStartPos] = useState<Position | null>(null);
   const [marqueeEndPos, setMarqueeEndPos] = useState<Position | null>(null);
   const [isDraggingMultiple, setIsDraggingMultiple] = useState<boolean>(false);
+  const [controlsStyle, setControlsStyle] = useState({ bottom: '16px', right: '16px' });
 
   useEffect(() => {
     const selectedElement = elements.find(el => el.selected);
     setActiveElementId(selectedElement?.id || null);
   }, [elements]);
+
+  useEffect(() => {
+    const updateControlsPosition = () => {
+      if (!canvasRef.current) return;
+      const mainContent = canvasRef.current.closest('.main-content');
+      if (!mainContent) return;
+
+      const rect = mainContent.getBoundingClientRect();
+      setControlsStyle({
+        bottom: `${window.innerHeight - rect.bottom + 16}px`,
+        right: `${window.innerWidth - rect.right + 16}px`
+      });
+    };
+
+    updateControlsPosition();
+    window.addEventListener('resize', updateControlsPosition);
+    return () => window.removeEventListener('resize', updateControlsPosition);
+  }, []);
 
   const getCanvasCoordinates = (e: React.MouseEvent): Position => {
     if (!canvasRef.current) return { x: 0, y: 0 };
@@ -98,6 +119,20 @@ const Canvas: React.FC<CanvasProps> = ({
     setMovingPointInfo({ elementId, pointIndex, initialMousePos });
     setIsDragging(false);
     setIsResizing(false);
+  };
+
+  const handleZoomIn = () => {
+    const newZoom = Math.min(2, zoomLevel + 0.1);
+    onZoomChange(newZoom);
+  };
+
+  const handleZoomOut = () => {
+    const newZoom = Math.max(0.5, zoomLevel - 0.1);
+    onZoomChange(newZoom);
+  };
+
+  const handleZoomReset = () => {
+    onZoomChange(1);
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
@@ -376,54 +411,64 @@ const Canvas: React.FC<CanvasProps> = ({
   };
 
   return (
-    <div 
-      ref={canvasRef}
-      className="canvas-container"
-      style={{ 
-        width: canvasWidth, 
-        height: canvasHeight,
-        transform: `scale(${zoomLevel})`,
-        background,
-      }}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseLeave}
-    >
-      {showGrid && (
-        <Grid width={canvasWidth} height={canvasHeight} gridSize={gridSize} />
-      )}
-      
-      <svg 
-        width={canvasWidth} 
-        height={canvasHeight} 
-        viewBox={`0 0 ${canvasWidth} ${canvasHeight}`}
-        style={{ overflow: 'visible' }}
+    <>
+      <div 
+        ref={canvasRef}
+        className="canvas-container"
+        style={{ 
+          width: canvasWidth,
+          height: canvasHeight,
+          transform: `scale(${zoomLevel})`,
+          background,
+        }}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
       >
-        {elements.map(element => (
-          <SVGElement 
-            key={element.id} 
-            element={element}
-            onResizeStart={handleResizeStart}
-            onEndpointDown={handleEndpointDown}
-          />
-        ))}
+        {showGrid && (
+          <Grid width={canvasWidth} height={canvasHeight} gridSize={gridSize} />
+        )}
+        
+        <svg 
+          width={canvasWidth} 
+          height={canvasHeight} 
+          viewBox={`0 0 ${canvasWidth} ${canvasHeight}`}
+          style={{ overflow: 'visible' }}
+        >
+          {elements.map(element => (
+            <SVGElement 
+              key={element.id} 
+              element={element}
+              onResizeStart={handleResizeStart}
+              onEndpointDown={handleEndpointDown}
+            />
+          ))}
 
-        {isMarqueeSelecting && marqueeStartPos && marqueeEndPos && (
-           <rect
+          {isMarqueeSelecting && marqueeStartPos && marqueeEndPos && (
+            <rect
               x={Math.min(marqueeStartPos.x, marqueeEndPos.x)}
               y={Math.min(marqueeStartPos.y, marqueeEndPos.y)}
               width={Math.abs(marqueeStartPos.x - marqueeEndPos.x)}
               height={Math.abs(marqueeStartPos.y - marqueeEndPos.y)}
-              fill="rgba(0, 100, 255, 0.1)" 
-              stroke="rgba(0, 100, 255, 0.5)" 
-              strokeWidth={1 / zoomLevel} 
-              vectorEffect="non-scaling-stroke" 
-              pointerEvents="none" 
-           />
-        )}
-      </svg>
-    </div>
+              fill="rgba(33, 150, 243, 0.08)"
+              stroke="#2196f3"
+              strokeWidth={1.5 / zoomLevel}
+              strokeDasharray="4 2"
+              vectorEffect="non-scaling-stroke"
+              rx={2 / zoomLevel}
+              ry={2 / zoomLevel}
+            />
+          )}
+        </svg>
+      </div>
+
+      <div className="canvas-controls" style={controlsStyle}>
+        <button onClick={handleZoomOut} title="Zoom Out">−</button>
+        <button onClick={handleZoomReset} title="Reset Zoom">{Math.round(zoomLevel * 100)}%</button>
+        <button onClick={handleZoomIn} title="Zoom In">+</button>
+      </div>
+    </>
   );
 };
 

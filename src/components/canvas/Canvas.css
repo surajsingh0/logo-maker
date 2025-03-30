@@ -4,10 +4,9 @@
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-sm);
-  transform-origin: top left;
+  transform-origin: center center;
   transition: transform var(--transition-normal), box-shadow var(--transition-normal);
   user-select: none;
-  margin: var(--spacing-sm);
   background-color: var(--background-light);
 }
 
@@ -16,6 +15,7 @@
 }
 
 .canvas-container svg {
+  display: block;
   position: absolute;
   top: 0;
   left: 0;
@@ -23,30 +23,53 @@
 
 /* Canvas Controls */
 .canvas-controls {
-  position: absolute;
-  bottom: var(--spacing-md);
-  right: var(--spacing-md);
+  position: fixed;
   display: flex;
-  gap: var(--spacing-xs);
+  align-items: center;
+  gap: 1px;
   background: var(--background-light);
-  padding: var(--spacing-xs);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-sm);
-  z-index: 100;
+  padding: 2px;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
   border: 1px solid var(--border-light);
 }
 
 .canvas-controls button {
-  width: 28px;
+  min-width: 32px;
   height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-sm);
+  border-radius: 4px;
   background: var(--background-medium);
   color: var(--text-secondary);
   font-size: 14px;
-  transition: all var(--transition-fast);
+  border: none;
+  cursor: pointer;
+  padding: 0 8px;
+  margin: 0;
+  transition: all 0.1s ease;
+}
+
+.canvas-controls button:nth-child(2) {
+  min-width: 52px;
+  background: var(--background-light);
+  border-left: 1px solid var(--border-light);
+  border-right: 1px solid var(--border-light);
+  border-radius: 0;
+}
+
+.canvas-controls button:first-child {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  padding-right: 4px;
+}
+
+.canvas-controls button:last-child {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  padding-left: 4px;
 }
 
 .canvas-controls button:hover {
@@ -70,7 +93,6 @@
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .canvas-container {
-    margin: var(--spacing-xs);
   }
 
   .canvas-controls {

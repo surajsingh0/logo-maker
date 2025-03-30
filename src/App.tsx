@@ -161,6 +161,10 @@ function App() {
     dragSelectedElements(dx, dy);
   };
 
+  const handleZoomChange = (newZoomLevel: number) => {
+    updateCanvasSettings({ zoomLevel: newZoomLevel });
+  };
+
   return (
     <div className="app">
       <Toolbar
@@ -202,6 +206,7 @@ function App() {
           onElementPointUpdate={handleElementPointUpdate}
           onSelectMultipleElements={selectMultipleElements}
           onDragMultipleElements={handleDragMultipleElements}
+          onZoomChange={handleZoomChange}
         />
       </div>
       
