@@ -18,24 +18,22 @@ import './App.css';
 function App() {
   const canvasRef = useRef<HTMLDivElement>(null);
   const {
-    state,
+    state: { elements, selectedElementId, canvasSettings },
     addElement,
     updateElement,
     removeElement,
     setSelectedElement,
     selectElementAtPosition,
     updateCanvasSettings,
+    bringForward,
+    sendBackward,
+    bringToFront,
+    sendToBack,
     undo,
     redo,
     canUndo,
     canRedo,
   } = useLogoState();
-
-  const { 
-    elements, 
-    selectedElementId, 
-    canvasSettings 
-  } = state;
 
   const selectedElement = elements.find(el => el.id === selectedElementId) || null;
 
@@ -114,7 +112,12 @@ function App() {
 
   // Export handlers
   const handleExportSVG = () => {
-    exportSvg(state);
+    exportSvg({ 
+      elements, 
+      selectedElementId, 
+      canvasSettings,
+      history: { past: [], future: [] }  // Empty history is fine for export
+    });
   };
 
   const handleExportPNG = () => {
@@ -138,6 +141,10 @@ function App() {
         onDelete={() => selectedElementId && removeElement(selectedElementId)}
         onExportSVG={handleExportSVG}
         onExportPNG={handleExportPNG}
+        onBringForward={bringForward}
+        onSendBackward={sendBackward}
+        onBringToFront={bringToFront}
+        onSendToBack={sendToBack}
         canUndo={canUndo}
         canRedo={canRedo}
         hasSelectedElement={!!selectedElementId}

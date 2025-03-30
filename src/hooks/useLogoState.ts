@@ -143,6 +143,67 @@ export const useLogoState = (initialState = INITIAL_STATE) => {
     });
   }, []);
 
+  // Z-index manipulation functions
+  const bringForward = useCallback(() => {
+    if (!state.selectedElementId) return;
+    
+    const elements = [...state.elements];
+    const selectedIndex = elements.findIndex(el => el.id === state.selectedElementId);
+    
+    if (selectedIndex < elements.length - 1) {
+      // Swap with the element above
+      [elements[selectedIndex], elements[selectedIndex + 1]] = 
+      [elements[selectedIndex + 1], elements[selectedIndex]];
+      
+      saveState({ elements });
+    }
+  }, [state.elements, state.selectedElementId, saveState]);
+
+  const sendBackward = useCallback(() => {
+    if (!state.selectedElementId) return;
+    
+    const elements = [...state.elements];
+    const selectedIndex = elements.findIndex(el => el.id === state.selectedElementId);
+    
+    if (selectedIndex > 0) {
+      // Swap with the element below
+      [elements[selectedIndex], elements[selectedIndex - 1]] = 
+      [elements[selectedIndex - 1], elements[selectedIndex]];
+      
+      saveState({ elements });
+    }
+  }, [state.elements, state.selectedElementId, saveState]);
+
+  const bringToFront = useCallback(() => {
+    if (!state.selectedElementId) return;
+    
+    const elements = [...state.elements];
+    const selectedIndex = elements.findIndex(el => el.id === state.selectedElementId);
+    
+    if (selectedIndex < elements.length - 1) {
+      // Remove the element and add it to the end
+      const [element] = elements.splice(selectedIndex, 1);
+      elements.push(element);
+      
+      saveState({ elements });
+    }
+  }, [state.elements, state.selectedElementId, saveState]);
+
+  const sendToBack = useCallback(() => {
+    if (!state.selectedElementId) return;
+    
+    const elements = [...state.elements];
+    const selectedIndex = elements.findIndex(el => el.id === state.selectedElementId);
+    
+    if (selectedIndex > 0) {
+      // Remove the element and add it to the beginning
+      const [element] = elements.splice(selectedIndex, 1);
+      elements.unshift(element);
+      
+      saveState({ elements });
+    }
+  }, [state.elements, state.selectedElementId, saveState]);
+
   // Check if undo/redo are available
   const canUndo = state.history.past.length > 0;
   const canRedo = state.history.future.length > 0;
@@ -155,6 +216,10 @@ export const useLogoState = (initialState = INITIAL_STATE) => {
     setSelectedElement,
     selectElementAtPosition,
     updateCanvasSettings,
+    bringForward,
+    sendBackward,
+    bringToFront,
+    sendToBack,
     undo,
     redo,
     canUndo,

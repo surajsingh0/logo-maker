@@ -14,6 +14,10 @@ interface ToolbarProps {
   onDelete: () => void;
   onExportSVG: () => void;
   onExportPNG: () => void;
+  onBringForward: () => void;
+  onSendBackward: () => void;
+  onBringToFront: () => void;
+  onSendToBack: () => void;
   canUndo: boolean;
   canRedo: boolean;
   hasSelectedElement: boolean;
@@ -32,6 +36,10 @@ const Toolbar: React.FC<ToolbarProps> = ({
   onDelete,
   onExportSVG,
   onExportPNG,
+  onBringForward,
+  onSendBackward,
+  onBringToFront,
+  onSendToBack,
   canUndo,
   canRedo,
   hasSelectedElement,
@@ -105,9 +113,9 @@ const Toolbar: React.FC<ToolbarProps> = ({
           </button>
         </div>
       </div>
-      
+
       <div className="toolbar-section">
-        <h3>Actions</h3>
+        <h3>History</h3>
         <div className="toolbar-buttons">
           <button 
             className="toolbar-button" 
@@ -128,7 +136,12 @@ const Toolbar: React.FC<ToolbarProps> = ({
             <i className="icon">↪️</i>
             <span>Redo</span>
           </button>
-          
+        </div>
+      </div>
+
+      <div className="toolbar-section">
+        <h3>Element</h3>
+        <div className="toolbar-buttons">
           <button 
             className="toolbar-button" 
             onClick={onDelete}
@@ -137,6 +150,51 @@ const Toolbar: React.FC<ToolbarProps> = ({
           >
             <i className="icon">🗑️</i>
             <span>Delete</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="toolbar-section">
+        <h3>Layer</h3>
+        <div className="toolbar-buttons">
+          <button 
+            className="toolbar-button" 
+            onClick={onBringToFront}
+            disabled={!hasSelectedElement}
+            title="Bring to Front"
+          >
+            <i className="icon">⏫</i>
+            <span>Front</span>
+          </button>
+
+          <button 
+            className="toolbar-button" 
+            onClick={onBringForward}
+            disabled={!hasSelectedElement}
+            title="Bring Forward"
+          >
+            <i className="icon">↑</i>
+            <span>Forward</span>
+          </button>
+
+          <button 
+            className="toolbar-button" 
+            onClick={onSendBackward}
+            disabled={!hasSelectedElement}
+            title="Send Backward"
+          >
+            <i className="icon">↓</i>
+            <span>Back</span>
+          </button>
+
+          <button 
+            className="toolbar-button" 
+            onClick={onSendToBack}
+            disabled={!hasSelectedElement}
+            title="Send to Back"
+          >
+            <i className="icon">⏬</i>
+            <span>Bottom</span>
           </button>
         </div>
       </div>
