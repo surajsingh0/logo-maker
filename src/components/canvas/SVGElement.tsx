@@ -42,6 +42,7 @@ const SVGElement: React.FC<SVGElementProps> = ({ element }) => {
               height={height + 4}
               fill="none"
               {...selectedStyle}
+              transform={transform}
             />
           )}
         </g>
@@ -69,6 +70,7 @@ const SVGElement: React.FC<SVGElementProps> = ({ element }) => {
               r={radius + 2}
               fill="none"
               {...selectedStyle}
+              transform={transform}
             />
           )}
         </g>
@@ -102,6 +104,7 @@ const SVGElement: React.FC<SVGElementProps> = ({ element }) => {
               height={fontSize + 8}
               fill="none"
               {...selectedStyle}
+              transform={transform}
             />
           )}
         </g>
@@ -134,6 +137,7 @@ const SVGElement: React.FC<SVGElementProps> = ({ element }) => {
               d={pathData}
               fill="none"
               {...selectedStyle}
+              transform={transform}
             />
           )}
         </g>

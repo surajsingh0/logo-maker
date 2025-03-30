@@ -142,21 +142,69 @@ export const getElementBounds = (element: LogoElement): { top: number; left: num
   }
 };
 
-// Check if a point is inside an element (for selection)
+// Check if a point is inside an element (for selection), considering rotation
 export const isPointInElement = (element: LogoElement, point: Position): boolean => {
-  const bounds = getElementBounds(element);
-  
-  if (element.type === 'circle') {
-    const radius = element.radius || 0;
-    const dx = point.x - element.position.x;
-    const dy = point.y - element.position.y;
-    return (dx * dx + dy * dy) <= (radius * radius);
+  const { position, rotation = 0, type } = element;
+  const cx = position.x;
+  const cy = position.y;
+
+  // Calculate the inverse rotation
+  const angleRad = -rotation * (Math.PI / 180); // Use negative angle for inverse
+  const cos = Math.cos(angleRad);
+  const sin = Math.sin(angleRad);
+
+  // Translate point relative to the rotation center (element.position)
+  const dx = point.x - cx;
+  const dy = point.y - cy;
+
+  // Apply inverse rotation
+  const rotatedX = dx * cos - dy * sin;
+  const rotatedY = dx * sin + dy * cos;
+
+  // Now check if the 'rotated' point lies within the element's un-rotated boundaries,
+  // relative to the rotation center (which is now the origin for rotatedX, rotatedY)
+
+  switch (type) {
+    case 'rectangle': {
+      const { width = 0, height = 0 } = element.dimensions || {};
+      // Check against the rectangle defined from (0,0) to (width, height)
+      return 0 <= rotatedX && rotatedX <= width && 0 <= rotatedY && rotatedY <= height;
+    }
+
+    case 'circle': {
+      const radius = element.radius || 0;
+      // Distance check from the center (which is the origin for rotatedX, rotatedY)
+      return (rotatedX * rotatedX + rotatedY * rotatedY) <= (radius * radius);
+    }
+
+    case 'text': {
+      const fontSize = element.fontSize || 24;
+      const content = element.content || '';
+      const approximateWidth = content.length * (fontSize * 0.6);
+      // Check relative to text anchor (0,0 in rotated frame)
+      // Using approximate bounds: [0, width] horizontally, [-fontSize, 5] vertically
+      return 0 <= rotatedX && rotatedX <= approximateWidth && -fontSize <= rotatedY && rotatedY <= 5;
+    }
+
+    case 'path': {
+      // Use the un-rotated bounding box for hit testing against the rotated point
+      const bounds = getElementBounds(element);
+      if (bounds.left === bounds.right || bounds.top === bounds.bottom) return false; // Empty
+
+      // Check if rotated point (relative to cx, cy) falls within the 
+      // bounding box translated relative to cx, cy
+      const relativeLeft = bounds.left - cx;
+      const relativeTop = bounds.top - cy;
+      const relativeRight = bounds.right - cx;
+      const relativeBottom = bounds.bottom - cy;
+
+      return (
+        relativeLeft <= rotatedX && rotatedX <= relativeRight &&
+        relativeTop <= rotatedY && rotatedY <= relativeBottom
+      );
+    }
+
+    default:
+      return false;
   }
-  
-  return (
-    point.x >= bounds.left &&
-    point.x <= bounds.right &&
-    point.y >= bounds.top &&
-    point.y <= bounds.bottom
-  );
 }; 
