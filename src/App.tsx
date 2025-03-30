@@ -29,6 +29,10 @@ function App() {
     redo,
     canUndo,
     canRedo,
+    bringForward,
+    sendBackward,
+    bringToFront,
+    sendToBack,
   } = useLogoState();
 
   const { 
@@ -136,6 +140,10 @@ function App() {
         onUndo={undo}
         onRedo={redo}
         onDelete={() => selectedElementId && removeElement(selectedElementId)}
+        onBringForward={bringForward}
+        onSendBackward={sendBackward}
+        onBringToFront={bringToFront}
+        onSendToBack={sendToBack}
         onExportSVG={handleExportSVG}
         onExportPNG={handleExportPNG}
         canUndo={canUndo}

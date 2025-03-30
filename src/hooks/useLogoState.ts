@@ -97,6 +97,39 @@ export const useLogoState = (initialState = INITIAL_STATE) => {
     return null;
   }, [state.elements, setSelectedElement]);
 
+  // Layering Functions
+  const changeLayer = useCallback((direction: 'forward' | 'backward' | 'front' | 'back') => {
+    if (!state.selectedElementId) return; // No element selected
+
+    const currentIndex = state.elements.findIndex(el => el.id === state.selectedElementId);
+    if (currentIndex === -1) return; // Element not found (shouldn't happen)
+
+    const currentElement = state.elements[currentIndex];
+    const newElements = [...state.elements]; // Create a mutable copy
+    newElements.splice(currentIndex, 1); // Remove element from current position
+
+    let newIndex = currentIndex;
+    if (direction === 'forward') {
+      newIndex = Math.min(currentIndex + 1, newElements.length); // Move one step up (or stay at top)
+    } else if (direction === 'backward') {
+      newIndex = Math.max(currentIndex - 1, 0); // Move one step down (or stay at bottom)
+    } else if (direction === 'front') {
+      newIndex = newElements.length; // Move to the very top
+    } else if (direction === 'back') {
+      newIndex = 0; // Move to the very bottom
+    }
+
+    newElements.splice(newIndex, 0, currentElement); // Insert element at new position
+
+    saveState({ elements: newElements }); // Save the new order with history
+
+  }, [state.elements, state.selectedElementId, saveState]);
+
+  const bringForward = useCallback(() => changeLayer('forward'), [changeLayer]);
+  const sendBackward = useCallback(() => changeLayer('backward'), [changeLayer]);
+  const bringToFront = useCallback(() => changeLayer('front'), [changeLayer]);
+  const sendToBack = useCallback(() => changeLayer('back'), [changeLayer]);
+
   // Update canvas settings
   const updateCanvasSettings = useCallback((settings: Partial<CanvasSettings>) => {
     saveState({
@@ -159,5 +192,10 @@ export const useLogoState = (initialState = INITIAL_STATE) => {
     redo,
     canUndo,
     canRedo,
+    // Layering actions
+    bringForward,
+    sendBackward,
+    bringToFront,
+    sendToBack,
   };
 }; 
