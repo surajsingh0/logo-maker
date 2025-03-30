@@ -13,6 +13,7 @@ import {
   createPolygon,
   createStar
 } from './utils/elementUtils';
+import { LogoElement } from './types';
 import './App.css';
 
 function App() {
@@ -100,12 +101,12 @@ function App() {
   };
 
   // Element drag handler
-  const handleElementDrag = (elementId: string, newPosition: { x: number; y: number }) => {
+  const handleElementDrag = (elementId: string, updates: Partial<Pick<LogoElement, 'position' | 'points'>>) => {
     const element = elements.find(el => el.id === elementId);
     if (element) {
       updateElement({
         ...element,
-        position: newPosition,
+        ...updates
       });
     }
   };

@@ -14,7 +14,7 @@ interface CanvasProps {
   zoomLevel: number;
   onSelectElement: (elementId: string | null) => void;
   onSelectElementAtPosition: (position: Position) => string | null;
-  onElementDrag: (elementId: string, newPosition: Position) => void;
+  onElementDrag: (elementId: string, updates: Partial<Pick<LogoElement, 'position' | 'points'>>) => void;
 }
 
 const Canvas: React.FC<CanvasProps> = ({
@@ -75,13 +75,34 @@ const Canvas: React.FC<CanvasProps> = ({
     const selectedElement = elements.find(el => el.id === activeElementId);
     
     if (selectedElement) {
-      // Calculate new position based on drag delta
-      const newPosition = {
-        x: selectedElement.position.x + (position.x - dragStartPos.x),
-        y: selectedElement.position.y + (position.y - dragStartPos.y),
-      };
+      const dx = position.x - dragStartPos.x;
+      const dy = position.y - dragStartPos.y;
+
+      if (selectedElement.type === 'line' && selectedElement.points) {
+        // For lines, update all points
+        const newPoints = selectedElement.points.map(point => ({
+          x: point.x + dx,
+          y: point.y + dy
+        }));
+        
+        // Update both points and position
+        onElementDrag(activeElementId, {
+          position: {
+            x: selectedElement.position.x + dx,
+            y: selectedElement.position.y + dy
+          },
+          points: newPoints
+        });
+      } else {
+        // For other elements, just update position
+        onElementDrag(activeElementId, {
+          position: {
+            x: selectedElement.position.x + dx,
+            y: selectedElement.position.y + dy
+          }
+        });
+      }
       
-      onElementDrag(activeElementId, newPosition);
       setDragStartPos(position);
     }
   };
