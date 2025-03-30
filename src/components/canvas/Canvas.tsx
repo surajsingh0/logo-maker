@@ -15,12 +15,18 @@ interface CanvasProps {
   onSelectElement: (elementId: string | null) => void;
   onSelectElementAtPosition: (position: Position) => string | null;
   onElementDrag: (elementId: string, updates: Partial<Pick<LogoElement, 'position' | 'points'>>) => void;
-  onElementResize: (elementId: string, updates: Partial<Pick<LogoElement, 'position' | 'dimensions'>>) => void;
+  onElementResize: (elementId: string, updates: Partial<LogoElement>) => void;
+  onElementPointUpdate: (elementId: string, pointIndex: number, newPosition: Position) => void;
 }
 
 interface ResizeStartState {
-  initialPosition: Position;
-  initialDimensions: Dimensions;
+  initialElementState: LogoElement;
+  initialMousePos: Position;
+}
+
+interface MovingPointInfo {
+  elementId: string;
+  pointIndex: number;
   initialMousePos: Position;
 }
 
@@ -36,6 +42,7 @@ const Canvas: React.FC<CanvasProps> = ({
   onSelectElementAtPosition,
   onElementDrag,
   onElementResize,
+  onElementPointUpdate,
 }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -44,6 +51,8 @@ const Canvas: React.FC<CanvasProps> = ({
   const [activeElementId, setActiveElementId] = useState<string | null>(null);
   const [resizeHandle, setResizeHandle] = useState<string | null>(null);
   const [resizeStartState, setResizeStartState] = useState<ResizeStartState | null>(null);
+  const [isMovingEndpoint, setIsMovingEndpoint] = useState<boolean>(false);
+  const [movingPointInfo, setMovingPointInfo] = useState<MovingPointInfo | null>(null);
 
   useEffect(() => {
     const selectedElement = elements.find(el => el.selected);
@@ -62,61 +71,171 @@ const Canvas: React.FC<CanvasProps> = ({
   // Handle resize start
   const handleResizeStart = (handle: string, event: React.MouseEvent) => {
     const element = elements.find(el => el.id === activeElementId);
-    if (!element || !element.dimensions) return;
+    if (!element) return;
+    
+    // Only exclude lines now
+    if (element.type === 'line') return;
 
     const initialCanvasMousePos = getCanvasCoordinates(event);
 
     setIsResizing(true);
     setResizeHandle(handle);
     setResizeStartState({
-      initialPosition: { ...element.position },
-      initialDimensions: { ...element.dimensions },
+      initialElementState: { ...element },
       initialMousePos: initialCanvasMousePos,
     });
-    // Prevent dragging during resize
     setIsDragging(false);
   };
 
-  // Handle mouse move (for dragging and resizing)
+  // Handle endpoint move start (for lines)
+  const handleEndpointDown = (elementId: string, pointIndex: number, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent canvas drag
+    const initialMousePos = getCanvasCoordinates(event);
+    setIsMovingEndpoint(true);
+    setMovingPointInfo({ elementId, pointIndex, initialMousePos });
+    // Ensure other states are off
+    setIsDragging(false);
+    setIsResizing(false);
+  };
+
+  // Handle mouse move (for dragging, resizing shapes, and moving points)
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!activeElementId || !canvasRef.current) return;
+    if (!canvasRef.current) return;
     
     const currentMousePos = getCanvasCoordinates(e);
     
-    if (isResizing && resizeHandle && resizeStartState) {
-      const { initialPosition, initialDimensions, initialMousePos } = resizeStartState;
-      // Calculate delta based on canvas coordinates
+    // Handle Endpoint Moving (Lines)
+    if (isMovingEndpoint && movingPointInfo) {
+      const { elementId, pointIndex, initialMousePos } = movingPointInfo;
+      // We don't need delta here, just pass the new absolute position
+      onElementPointUpdate(elementId, pointIndex, currentMousePos);
+    }
+    // Handle Resizing (Shapes)
+    else if (isResizing && resizeHandle && resizeStartState && activeElementId) {
+      const { initialElementState, initialMousePos } = resizeStartState;
       const dx = currentMousePos.x - initialMousePos.x;
       const dy = currentMousePos.y - initialMousePos.y;
 
-      let newX = initialPosition.x;
-      let newY = initialPosition.y;
-      let newWidth = initialDimensions.width;
-      let newHeight = initialDimensions.height;
+      let update: Partial<LogoElement> = {};
 
-      // Apply delta to initial state
-      if (resizeHandle.includes('right')) {
-        newWidth = Math.max(10, initialDimensions.width + dx);
-      } else if (resizeHandle.includes('left')) {
-        const calculatedWidth = Math.max(10, initialDimensions.width - dx);
-        newX = initialPosition.x + (initialDimensions.width - calculatedWidth);
-        newWidth = calculatedWidth;
+      // Helper to calculate distance for radial scaling
+      const calculateDistanceChange = (handle: string, dx: number, dy: number): number => {
+         // Average distance change, adjusted for handle direction
+         // More robust might involve actual distance from center, but this is simpler
+         if (handle.includes('left') || handle.includes('top')) {
+           // Use the larger change magnitude for shrinking from top/left
+           return -Math.max(Math.abs(dx), Math.abs(dy));
+         }
+         // Use the larger change magnitude for growing from bottom/right
+         return Math.max(Math.abs(dx), Math.abs(dy));
+      };
+
+      // Type-specific resize logic
+      switch (initialElementState.type) {
+        case 'rectangle': { 
+          const { position: initialPosition, dimensions: initialDimensions } = initialElementState;
+          if (!initialDimensions) break;
+          let newX = initialPosition.x;
+          let newY = initialPosition.y;
+          let newWidth = initialDimensions.width;
+          let newHeight = initialDimensions.height;
+
+          if (resizeHandle.includes('right')) {
+            newWidth = Math.max(10, initialDimensions.width + dx);
+          } else if (resizeHandle.includes('left')) {
+            const calculatedWidth = Math.max(10, initialDimensions.width - dx);
+            newX = initialPosition.x + (initialDimensions.width - calculatedWidth);
+            newWidth = calculatedWidth;
+          }
+          if (resizeHandle.includes('bottom')) {
+            newHeight = Math.max(10, initialDimensions.height + dy);
+          } else if (resizeHandle.includes('top')) {
+            const calculatedHeight = Math.max(10, initialDimensions.height - dy);
+            newY = initialPosition.y + (initialDimensions.height - calculatedHeight);
+            newHeight = calculatedHeight;
+          }
+          update = { position: { x: newX, y: newY }, dimensions: { width: newWidth, height: newHeight } };
+          break;
+        }
+        case 'circle': { 
+           const { radius: initialRadius = 0 } = initialElementState;
+           const delta = calculateDistanceChange(resizeHandle, dx, dy);
+           const newRadius = Math.max(5, initialRadius + delta); // Min radius 5
+           update = { radius: newRadius };
+           break;
+        }
+        case 'ellipse': { 
+           const { rx: initialRx = 0, ry: initialRy = 0, position: initialPosition } = initialElementState;
+           let newRx = initialRx;
+           let newRy = initialRy;
+           let newX = initialPosition.x;
+           let newY = initialPosition.y;
+
+           // Adjust radii based on handle
+           if (resizeHandle.includes('right')) {
+              newRx = Math.max(5, initialRx + dx);
+           } else if (resizeHandle.includes('left')) {
+              newRx = Math.max(5, initialRx - dx);
+              newX = initialPosition.x + dx; // Adjust position when resizing left
+           }
+           if (resizeHandle.includes('bottom')) {
+              newRy = Math.max(5, initialRy + dy);
+           } else if (resizeHandle.includes('top')) {
+              newRy = Math.max(5, initialRy - dy);
+              newY = initialPosition.y + dy; // Adjust position when resizing top
+           }
+           update = { position: { x: newX, y: newY }, rx: newRx, ry: newRy };
+           break;
+        }
+         case 'polygon': { // Scales uniformly like circle for simplicity
+           const { radius: initialRadius = 0 } = initialElementState;
+           const delta = calculateDistanceChange(resizeHandle, dx, dy);
+           const newRadius = Math.max(5, initialRadius + delta);
+           update = { radius: newRadius };
+           break;
+         }
+         case 'star': { // Scales outer radius, keeps inner ratio for simplicity
+           const { outerRadius: initialOuterRadius = 0, innerRadius: initialInnerRadius = 0 } = initialElementState;
+           if (initialOuterRadius === 0) break; // Avoid division by zero
+           const delta = calculateDistanceChange(resizeHandle, dx, dy);
+           const newOuterRadius = Math.max(5, initialOuterRadius + delta);
+           const ratio = initialInnerRadius / initialOuterRadius;
+           const newInnerRadius = Math.max(2, newOuterRadius * ratio); // Ensure inner radius is also reasonable
+           update = { outerRadius: newOuterRadius, innerRadius: newInnerRadius };
+           break;
+         }
+         case 'text': {
+           const { fontSize: initialFontSize = 16 } = initialElementState;
+           // Use vertical drag distance primarily to control font size
+           // Use the larger delta (dx or dy) for more intuitive scaling from corners
+           const delta = Math.abs(dx) > Math.abs(dy) ? dx : dy;
+           let scaleFactor = 0;
+
+           // Determine scale direction based on handle
+           if (resizeHandle.includes('bottom') || resizeHandle.includes('right')) {
+              scaleFactor = delta; // Increase size
+           } else if (resizeHandle.includes('top') || resizeHandle.includes('left')) {
+              scaleFactor = -delta; // Decrease size
+           }
+           
+           // Adjust sensitivity - a smaller multiplier makes resizing less drastic
+           const sensitivity = 0.5; 
+           let newFontSize = initialFontSize + (scaleFactor * sensitivity);
+
+           // Apply minimum font size
+           newFontSize = Math.max(8, newFontSize); // Minimum font size of 8
+           update = { fontSize: newFontSize };
+           break;
+         }
+        default: 
+          break; // Ignore non-resizable types like line
       }
 
-      if (resizeHandle.includes('bottom')) {
-        newHeight = Math.max(10, initialDimensions.height + dy);
-      } else if (resizeHandle.includes('top')) {
-        const calculatedHeight = Math.max(10, initialDimensions.height - dy);
-        newY = initialPosition.y + (initialDimensions.height - calculatedHeight);
-        newHeight = calculatedHeight;
+      if (Object.keys(update).length > 0) {
+         onElementResize(activeElementId, update);
       }
 
-      onElementResize(activeElementId, {
-        position: { x: newX, y: newY },
-        dimensions: { width: newWidth, height: newHeight }
-      });
-
-    } else if (isDragging) {
+    } else if (isDragging && activeElementId) {
       const selectedElement = elements.find(el => el.id === activeElementId);
       if (!selectedElement) return;
       const dx = currentMousePos.x - dragStartPos.x;
@@ -140,33 +259,34 @@ const Canvas: React.FC<CanvasProps> = ({
     }
   };
 
-  // Handle mouse up (end of drag/resize)
+  // Handle mouse up (end of drag/resize/endpoint move)
   const handleMouseUp = () => {
     setIsDragging(false);
     setIsResizing(false);
     setResizeHandle(null);
-    setResizeStartState(null); // Clear resize start state
+    setResizeStartState(null); 
+    setIsMovingEndpoint(false); // Clear endpoint move state
+    setMovingPointInfo(null);
   };
 
-  // Handle mouse leave (end of drag/resize)
+  // Handle mouse leave (similar to mouse up)
   const handleMouseLeave = () => {
-    if (isResizing) {
-       // Optional: Decide if resize should cancel or complete on mouse leave
-       // For now, let's complete it
+    if (isResizing || isDragging || isMovingEndpoint) {
+       // Reset all states on mouse leave
+       setIsDragging(false);
        setIsResizing(false);
        setResizeHandle(null);
        setResizeStartState(null);
-    }
-    if (isDragging) {
-      setIsDragging(false);
+       setIsMovingEndpoint(false);
+       setMovingPointInfo(null);
     }
   };
 
   // Handle mouse down on canvas
   const handleMouseDown = (e: React.MouseEvent) => {
-    // Prevent initiating drag/select if clicking on a resize handle (event bubbles up)
-    if ((e.target as SVGElement).classList?.contains('resize-handle')) {
-       return;
+    if ((e.target as SVGElement).classList?.contains('resize-handle') || 
+        (e.target as SVGElement).classList?.contains('line-endpoint-handle')) {
+       return; // Ignore clicks on any handle
     }
     
     const position = getCanvasCoordinates(e);
@@ -214,6 +334,7 @@ const Canvas: React.FC<CanvasProps> = ({
             key={element.id} 
             element={element}
             onResizeStart={handleResizeStart}
+            onEndpointDown={handleEndpointDown}
           />
         ))}
       </svg>

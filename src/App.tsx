@@ -13,7 +13,7 @@ import {
   createPolygon,
   createStar
 } from './utils/elementUtils';
-import { LogoElement } from './types';
+import { LogoElement, Position } from './types';
 import './App.css';
 
 function App() {
@@ -34,6 +34,7 @@ function App() {
     redo,
     canUndo,
     canRedo,
+    updateElementPoint,
   } = useLogoState();
 
   const selectedElement = elements.find(el => el.id === selectedElementId) || null;
@@ -112,7 +113,7 @@ function App() {
   };
 
   // Element resize handler
-  const handleElementResize = (elementId: string, updates: Partial<Pick<LogoElement, 'position' | 'dimensions'>>) => {
+  const handleElementResize = (elementId: string, updates: Partial<LogoElement>) => {
     const element = elements.find(el => el.id === elementId);
     if (element) {
       updateElement({
@@ -120,6 +121,11 @@ function App() {
         ...updates
       });
     }
+  };
+
+  // Handler for updating a specific point of an element (e.g., line endpoint)
+  const handleElementPointUpdate = (elementId: string, pointIndex: number, newPosition: Position) => {
+    updateElementPoint(elementId, pointIndex, newPosition);
   };
 
   // Export handlers
@@ -175,6 +181,7 @@ function App() {
           onSelectElementAtPosition={selectElementAtPosition}
           onElementDrag={handleElementDrag}
           onElementResize={handleElementResize}
+          onElementPointUpdate={handleElementPointUpdate}
         />
       </div>
       

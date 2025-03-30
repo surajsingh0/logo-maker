@@ -1,49 +1,58 @@
 import React from 'react';
-import { LogoElement, Position } from '../../types';
+import { Position } from '../../types'; // LogoElement no longer needed directly
 import './ResizeHandles.css';
 
 type HandlePosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 
+// Define the expected bounds structure
+export interface ElementBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 interface ResizeHandlesProps {
-  element: LogoElement;
+  bbox: DOMRect; // Accept the raw DOMRect from getBBox()
+  transform: string; // Accept the transform string applied to the element
   onResizeStart: (handle: HandlePosition, event: React.MouseEvent) => void;
 }
 
-const ResizeHandles: React.FC<ResizeHandlesProps> = ({ element, onResizeStart }) => {
-  const { position, dimensions, type } = element;
+const ResizeHandles: React.FC<ResizeHandlesProps> = ({ bbox, transform, onResizeStart }) => {
   
-  // Only show resize handles for elements that support resizing
-  if (!dimensions || type === 'line') return null;
+  if (!bbox) return null; 
+
+  // Use local bbox coordinates
+  const { x, y, width, height } = bbox; 
+  const handleSize = 8;
   
-  const { width, height } = dimensions;
-  const handleSize = 8; // Size of the resize handle squares
-  
+  // Position handles relative to the local bbox origin (x, y)
   const handles: { position: HandlePosition; x: number; y: number }[] = [
-    { position: 'top-left', x: position.x, y: position.y },
-    { position: 'top-right', x: position.x + width, y: position.y },
-    { position: 'bottom-left', x: position.x, y: position.y + height },
-    { position: 'bottom-right', x: position.x + width, y: position.y + height },
+    { position: 'top-left', x: x, y: y },
+    { position: 'top-right', x: x + width, y: y },
+    { position: 'bottom-left', x: x, y: y + height },
+    { position: 'bottom-right', x: x + width, y: y + height },
   ];
 
   const handleMouseDown = (e: React.MouseEvent, handle: HandlePosition) => {
-    e.stopPropagation(); // Prevent canvas drag from triggering
-    // Pass the handle and the original event up
+    e.stopPropagation(); 
     onResizeStart(handle, e);
   };
 
+  // Apply the element's transform to the group containing the handles
   return (
-    <g className="resize-handles">
+    <g className="resize-handles" transform={transform}>
       {handles.map(({ position: handlePosition, x, y }) => {
-        // Determine correct cursor based on handle position
         const cursor = 
           (handlePosition === 'top-left' || handlePosition === 'bottom-right') 
-            ? 'nwse-resize' // Correct cursor for diagonal
-            : 'nesw-resize'; // Correct cursor for diagonal
+            ? 'nwse-resize' 
+            : 'nesw-resize';
 
         return (
           <rect
             key={handlePosition}
             className={`resize-handle ${handlePosition}`}
+            // Position handle centers at the bbox corners
             x={x - handleSize / 2}
             y={y - handleSize / 2}
             width={handleSize}
@@ -52,6 +61,8 @@ const ResizeHandles: React.FC<ResizeHandlesProps> = ({ element, onResizeStart })
             stroke="#2196f3"
             strokeWidth={1}
             style={{ cursor }}
+            // Prevent element transform from affecting handle stroke width
+            vectorEffect="non-scaling-stroke" 
             onMouseDown={(e) => handleMouseDown(e, handlePosition)}
           />
         );

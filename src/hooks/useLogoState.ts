@@ -21,6 +21,14 @@ const INITIAL_STATE: LogoState = {
   },
 };
 
+interface UpdateElementPointAction {
+  type: 'UPDATE_ELEMENT_POINT';
+  payload: { elementId: string; pointIndex: number; newPosition: Position };
+}
+
+type LogoAction = 
+  | UpdateElementPointAction;
+
 export const useLogoState = (initialState = INITIAL_STATE) => {
   const [state, setState] = useState<LogoState>(initialState);
 
@@ -208,6 +216,21 @@ export const useLogoState = (initialState = INITIAL_STATE) => {
   const canUndo = state.history.past.length > 0;
   const canRedo = state.history.future.length > 0;
 
+  const updateElementPoint = useCallback((elementId: string, pointIndex: number, newPosition: Position) => {
+    saveState({
+      elements: state.elements.map(el => {
+        if (el.id === elementId && el.points) {
+          const newPoints = [...el.points];
+          if (pointIndex >= 0 && pointIndex < newPoints.length) {
+            newPoints[pointIndex] = newPosition;
+            return { ...el, points: newPoints };
+          }
+        }
+        return el;
+      })
+    });
+  }, [state.elements, saveState]);
+
   return {
     state,
     addElement,
@@ -224,5 +247,6 @@ export const useLogoState = (initialState = INITIAL_STATE) => {
     redo,
     canUndo,
     canRedo,
+    updateElementPoint,
   };
 }; 
