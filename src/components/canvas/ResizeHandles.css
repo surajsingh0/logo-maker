@@ -1,0 +1,12 @@
+.resize-handles {
+  pointer-events: none; /* Allow events to pass through to the handles themselves */
+}
+
+.resize-handle {
+  pointer-events: all;
+  user-select: none;
+}
+
+.resize-handle:hover {
+  fill: #2196f3;
+} 

@@ -1,11 +1,13 @@
 import React from 'react';
-import { LogoElement } from '../../types';
+import { LogoElement, Position } from '../../types';
+import ResizeHandles from './ResizeHandles';
 
 interface SVGElementProps {
   element: LogoElement;
+  onResizeStart?: (handle: string, event: React.MouseEvent) => void;
 }
 
-const SVGElement: React.FC<SVGElementProps> = ({ element }) => {
+const SVGElement: React.FC<SVGElementProps> = ({ element, onResizeStart }) => {
   const { type, position, styles, rotation } = element;
   const { fill, stroke, strokeWidth, opacity } = styles;
 
@@ -17,11 +19,26 @@ const SVGElement: React.FC<SVGElementProps> = ({ element }) => {
     ? { stroke: '#2196f3', strokeWidth: strokeWidth + 1, strokeDasharray: '4 2' } 
     : {};
 
+  // Wrapper component to add resize handles
+  const withResizeHandles = (elementJsx: React.ReactElement) => {
+    if (!element.selected || !onResizeStart) return elementJsx;
+    
+    return (
+      <g>
+        {elementJsx}
+        <ResizeHandles 
+          element={element} 
+          onResizeStart={onResizeStart} 
+        />
+      </g>
+    );
+  };
+
   switch (type) {
     case 'rectangle':
       const { width = 0, height = 0 } = element.dimensions || {};
       
-      return (
+      return withResizeHandles(
         <g>
           <rect
             x={position.x}
@@ -51,7 +68,7 @@ const SVGElement: React.FC<SVGElementProps> = ({ element }) => {
     case 'circle':
       const radius = element.radius || 0;
       
-      return (
+      return withResizeHandles(
         <g>
           <circle
             cx={position.x}
@@ -81,7 +98,7 @@ const SVGElement: React.FC<SVGElementProps> = ({ element }) => {
       const fontFamily = element.fontFamily || 'Arial';
       const fontSize = element.fontSize || 24;
       
-      return (
+      return withResizeHandles(
         <g>
           <text
             x={position.x}
@@ -122,7 +139,7 @@ const SVGElement: React.FC<SVGElementProps> = ({ element }) => {
         pathData += ` L ${points[i].x} ${points[i].y}`;
       }
       
-      return (
+      return withResizeHandles(
         <g>
           <path
             d={pathData}
@@ -147,7 +164,7 @@ const SVGElement: React.FC<SVGElementProps> = ({ element }) => {
       const rx = element.rx || 0;
       const ry = element.ry || 0;
 
-      return (
+      return withResizeHandles(
         <g>
           <ellipse
             cx={position.x}
@@ -180,7 +197,7 @@ const SVGElement: React.FC<SVGElementProps> = ({ element }) => {
       const p1 = linePoints[0];
       const p2 = linePoints[1];
 
-      return (
+      return withResizeHandles(
         <g>
           <line
             x1={p1.x}
@@ -220,7 +237,7 @@ const SVGElement: React.FC<SVGElementProps> = ({ element }) => {
       }
       const pointsStr = polyPoints.join(' ');
 
-      return (
+      return withResizeHandles(
         <g>
           <polygon
             points={pointsStr}
@@ -256,7 +273,7 @@ const SVGElement: React.FC<SVGElementProps> = ({ element }) => {
       }
       const pointsStr = starPoints.join(' ');
 
-      return (
+      return withResizeHandles(
         <g>
           <polygon
             points={pointsStr}

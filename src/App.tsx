@@ -111,6 +111,17 @@ function App() {
     }
   };
 
+  // Element resize handler
+  const handleElementResize = (elementId: string, updates: Partial<Pick<LogoElement, 'position' | 'dimensions'>>) => {
+    const element = elements.find(el => el.id === elementId);
+    if (element) {
+      updateElement({
+        ...element,
+        ...updates
+      });
+    }
+  };
+
   // Export handlers
   const handleExportSVG = () => {
     exportSvg({ 
@@ -163,6 +174,7 @@ function App() {
           onSelectElement={setSelectedElement}
           onSelectElementAtPosition={selectElementAtPosition}
           onElementDrag={handleElementDrag}
+          onElementResize={handleElementResize}
         />
       </div>
       
