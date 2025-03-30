@@ -16,7 +16,6 @@ const ElementProperties: React.FC<ElementPropertiesProps> = ({
   const [showFillPicker, setShowFillPicker] = useState(false);
   const [showStrokePicker, setShowStrokePicker] = useState(false);
 
-  // Update local state when selected element changes
   useEffect(() => {
     setElement(selectedElement);
   }, [selectedElement]);
@@ -32,11 +31,9 @@ const ElementProperties: React.FC<ElementPropertiesProps> = ({
     );
   }
 
-  // Handle input changes
   const handleChange = (field: string, value: string | number | object) => {
     const updatedElement = { ...element } as any;
 
-    // Handle nested properties
     if (field.includes('.')) {
       const [parent, child] = field.split('.');
       updatedElement[parent] = {
@@ -51,7 +48,6 @@ const ElementProperties: React.FC<ElementPropertiesProps> = ({
     onUpdateElement(updatedElement);
   };
 
-  // Update position
   const handlePositionChange = (axis: 'x' | 'y', value: string) => {
     const numValue = parseFloat(value);
     if (isNaN(numValue)) return;
@@ -62,7 +58,6 @@ const ElementProperties: React.FC<ElementPropertiesProps> = ({
     });
   };
 
-  // Update dimensions for rectangles
   const handleDimensionsChange = (dimension: 'width' | 'height', value: string) => {
     if (element.type !== 'rectangle' || !element.dimensions) return;
 
@@ -75,7 +70,6 @@ const ElementProperties: React.FC<ElementPropertiesProps> = ({
     });
   };
 
-  // Update radius for circles
   const handleRadiusChange = (value: string) => {
     if (element.type !== 'circle') return;
 
@@ -85,7 +79,6 @@ const ElementProperties: React.FC<ElementPropertiesProps> = ({
     handleChange('radius', numValue);
   };
 
-  // Update text properties
   const handleTextChange = (field: 'content' | 'fontFamily' | 'fontSize', value: string | number) => {
     if (element.type !== 'text') return;
 
@@ -98,7 +91,6 @@ const ElementProperties: React.FC<ElementPropertiesProps> = ({
     }
   };
 
-  // Basic controls for all element types
   const commonControls = (
     <>
       <div className="property-group">
@@ -211,7 +203,6 @@ const ElementProperties: React.FC<ElementPropertiesProps> = ({
     </>
   );
 
-  // Type-specific controls
   let specificControls = null;
 
   switch (element.type) {

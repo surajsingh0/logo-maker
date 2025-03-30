@@ -7,7 +7,6 @@ interface GridProps {
 }
 
 const Grid: React.FC<GridProps> = ({ width, height, gridSize }) => {
-  // Generate horizontal lines
   const horizontalLines = [];
   for (let y = gridSize; y < height; y += gridSize) {
     horizontalLines.push(
@@ -23,7 +22,6 @@ const Grid: React.FC<GridProps> = ({ width, height, gridSize }) => {
     );
   }
 
-  // Generate vertical lines
   const verticalLines = [];
   for (let x = gridSize; x < width; x += gridSize) {
     verticalLines.push(

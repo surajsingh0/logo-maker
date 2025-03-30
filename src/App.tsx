@@ -46,7 +46,6 @@ function App() {
 
   const selectedElement = elements.find(el => el.id === selectedElementId) || null;
 
-  // Add element handlers
   const handleAddRectangle = () => {
     const center = {
       x: canvasSettings.width / 2 - 50,
@@ -96,7 +95,6 @@ function App() {
       x: canvasSettings.width / 2,
       y: canvasSettings.height / 2,
     };
-    // Default to triangle
     addElement(createPolygon(center, 3)); 
   };
 
@@ -108,7 +106,6 @@ function App() {
     addElement(createStar(center));
   };
 
-  // Element drag handler
   const handleElementDrag = (elementId: string, updates: Partial<Pick<LogoElement, 'position' | 'points'>>) => {
     const element = elements.find(el => el.id === elementId);
     if (element) {
@@ -119,7 +116,6 @@ function App() {
     }
   };
 
-  // Element resize handler
   const handleElementResize = (elementId: string, updates: Partial<LogoElement>) => {
     const element = elements.find(el => el.id === elementId);
     if (element) {
@@ -130,18 +126,16 @@ function App() {
     }
   };
 
-  // Handler for updating a specific point of an element (e.g., line endpoint)
   const handleElementPointUpdate = (elementId: string, pointIndex: number, newPosition: Position) => {
     updateElementPoint(elementId, pointIndex, newPosition);
   };
 
-  // Export handlers
   const handleExportSVG = () => {
     exportSvg({ 
       elements, 
       selectedElementId, 
       canvasSettings,
-      history: { past: [], future: [] }  // Empty history is fine for export
+      history: { past: [], future: [] } // Provide empty history for export
     });
   };
 
@@ -151,7 +145,6 @@ function App() {
     }
   };
 
-  // Delete handler - delete single or multiple
   const handleDelete = () => {
     if (hasMultiSelection) {
        removeSelectedElements();
@@ -160,15 +153,11 @@ function App() {
     }
   };
 
-  // Handler for dragging multiple elements
   const handleDragMultipleElements = (dx: number, dy: number) => {
     const currentSelectedElements = elements.filter(el => el.selected);
-    
-    // If no selection, quit early
     if (currentSelectedElements.length === 0) {
       return;
     }
-    
     dragSelectedElements(dx, dy);
   };
 

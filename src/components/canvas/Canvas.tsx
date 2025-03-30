@@ -76,13 +76,9 @@ const Canvas: React.FC<CanvasProps> = ({
     };
   };
 
-  // Handle resize start
   const handleResizeStart = (handle: string, event: React.MouseEvent) => {
     const element = elements.find(el => el.id === activeElementId);
-    if (!element) return;
-    
-    // Only exclude lines now
-    if (element.type === 'line') return;
+    if (!element || element.type === 'line') return;
 
     const initialCanvasMousePos = getCanvasCoordinates(event);
 
@@ -95,30 +91,24 @@ const Canvas: React.FC<CanvasProps> = ({
     setIsDragging(false);
   };
 
-  // Handle endpoint move start (for lines)
   const handleEndpointDown = (elementId: string, pointIndex: number, event: React.MouseEvent) => {
-    event.stopPropagation(); // Prevent canvas drag
+    event.stopPropagation(); // Prevent canvas interaction
     const initialMousePos = getCanvasCoordinates(event);
     setIsMovingEndpoint(true);
     setMovingPointInfo({ elementId, pointIndex, initialMousePos });
-    // Ensure other states are off
     setIsDragging(false);
     setIsResizing(false);
   };
 
-  // Handle mouse move (for dragging, resizing shapes, moving points, and marquee selection)
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!canvasRef.current) return;
     
     const currentMousePos = getCanvasCoordinates(e);
     
-    // Handle Endpoint Moving (Lines)
     if (isMovingEndpoint && movingPointInfo) {
-      const { elementId, pointIndex, initialMousePos } = movingPointInfo;
-      // We don't need delta here, just pass the new absolute position
+      const { elementId, pointIndex } = movingPointInfo;
       onElementPointUpdate(elementId, pointIndex, currentMousePos);
     }
-    // Handle Resizing (Shapes)
     else if (isResizing && resizeHandle && resizeStartState && activeElementId) {
       const { initialElementState, initialMousePos } = resizeStartState;
       const dx = currentMousePos.x - initialMousePos.x;
@@ -126,19 +116,13 @@ const Canvas: React.FC<CanvasProps> = ({
 
       let update: Partial<LogoElement> = {};
 
-      // Helper to calculate distance for radial scaling
       const calculateDistanceChange = (handle: string, dx: number, dy: number): number => {
-         // Average distance change, adjusted for handle direction
-         // More robust might involve actual distance from center, but this is simpler
-         if (handle.includes('left') || handle.includes('top')) {
-           // Use the larger change magnitude for shrinking from top/left
+         if (handle.includes('w') || handle.includes('n')) {
            return -Math.max(Math.abs(dx), Math.abs(dy));
          }
-         // Use the larger change magnitude for growing from bottom/right
          return Math.max(Math.abs(dx), Math.abs(dy));
       };
 
-      // Type-specific resize logic
       switch (initialElementState.type) {
         case 'rectangle': { 
           const { position: initialPosition, dimensions: initialDimensions } = initialElementState;
@@ -148,16 +132,16 @@ const Canvas: React.FC<CanvasProps> = ({
           let newWidth = initialDimensions.width;
           let newHeight = initialDimensions.height;
 
-          if (resizeHandle.includes('right')) {
+          if (resizeHandle.includes('e')) {
             newWidth = Math.max(10, initialDimensions.width + dx);
-          } else if (resizeHandle.includes('left')) {
+          } else if (resizeHandle.includes('w')) {
             const calculatedWidth = Math.max(10, initialDimensions.width - dx);
             newX = initialPosition.x + (initialDimensions.width - calculatedWidth);
             newWidth = calculatedWidth;
           }
-          if (resizeHandle.includes('bottom')) {
+          if (resizeHandle.includes('s')) {
             newHeight = Math.max(10, initialDimensions.height + dy);
-          } else if (resizeHandle.includes('top')) {
+          } else if (resizeHandle.includes('n')) {
             const calculatedHeight = Math.max(10, initialDimensions.height - dy);
             newY = initialPosition.y + (initialDimensions.height - calculatedHeight);
             newHeight = calculatedHeight;
@@ -168,7 +152,7 @@ const Canvas: React.FC<CanvasProps> = ({
         case 'circle': { 
            const { radius: initialRadius = 0 } = initialElementState;
            const delta = calculateDistanceChange(resizeHandle, dx, dy);
-           const newRadius = Math.max(5, initialRadius + delta); // Min radius 5
+           const newRadius = Math.max(5, initialRadius + delta);
            update = { radius: newRadius };
            break;
         }
@@ -179,64 +163,58 @@ const Canvas: React.FC<CanvasProps> = ({
            let newX = initialPosition.x;
            let newY = initialPosition.y;
 
-           // Adjust radii based on handle
-           if (resizeHandle.includes('right')) {
+           if (resizeHandle.includes('e')) {
               newRx = Math.max(5, initialRx + dx);
-           } else if (resizeHandle.includes('left')) {
+           } else if (resizeHandle.includes('w')) {
               newRx = Math.max(5, initialRx - dx);
-              newX = initialPosition.x + dx; // Adjust position when resizing left
+              newX = initialPosition.x + dx; 
            }
-           if (resizeHandle.includes('bottom')) {
+           if (resizeHandle.includes('s')) {
               newRy = Math.max(5, initialRy + dy);
-           } else if (resizeHandle.includes('top')) {
+           } else if (resizeHandle.includes('n')) {
               newRy = Math.max(5, initialRy - dy);
-              newY = initialPosition.y + dy; // Adjust position when resizing top
+              newY = initialPosition.y + dy; 
            }
            update = { position: { x: newX, y: newY }, rx: newRx, ry: newRy };
            break;
         }
-         case 'polygon': { // Scales uniformly like circle for simplicity
+         case 'polygon': {
            const { radius: initialRadius = 0 } = initialElementState;
            const delta = calculateDistanceChange(resizeHandle, dx, dy);
            const newRadius = Math.max(5, initialRadius + delta);
            update = { radius: newRadius };
            break;
          }
-         case 'star': { // Scales outer radius, keeps inner ratio for simplicity
+         case 'star': { 
            const { outerRadius: initialOuterRadius = 0, innerRadius: initialInnerRadius = 0 } = initialElementState;
-           if (initialOuterRadius === 0) break; // Avoid division by zero
+           if (initialOuterRadius === 0) break;
            const delta = calculateDistanceChange(resizeHandle, dx, dy);
            const newOuterRadius = Math.max(5, initialOuterRadius + delta);
            const ratio = initialInnerRadius / initialOuterRadius;
-           const newInnerRadius = Math.max(2, newOuterRadius * ratio); // Ensure inner radius is also reasonable
+           const newInnerRadius = Math.max(2, newOuterRadius * ratio); 
            update = { outerRadius: newOuterRadius, innerRadius: newInnerRadius };
            break;
          }
          case 'text': {
            const { fontSize: initialFontSize = 16 } = initialElementState;
-           // Use vertical drag distance primarily to control font size
-           // Use the larger delta (dx or dy) for more intuitive scaling from corners
            const delta = Math.abs(dx) > Math.abs(dy) ? dx : dy;
            let scaleFactor = 0;
 
-           // Determine scale direction based on handle
-           if (resizeHandle.includes('bottom') || resizeHandle.includes('right')) {
-              scaleFactor = delta; // Increase size
-           } else if (resizeHandle.includes('top') || resizeHandle.includes('left')) {
-              scaleFactor = -delta; // Decrease size
+           if (resizeHandle.includes('s') || resizeHandle.includes('e')) {
+              scaleFactor = delta;
+           } else if (resizeHandle.includes('n') || resizeHandle.includes('w')) {
+              scaleFactor = -delta;
            }
            
-           // Adjust sensitivity - a smaller multiplier makes resizing less drastic
            const sensitivity = 0.5; 
            let newFontSize = initialFontSize + (scaleFactor * sensitivity);
 
-           // Apply minimum font size
-           newFontSize = Math.max(8, newFontSize); // Minimum font size of 8
+           newFontSize = Math.max(8, newFontSize);
            update = { fontSize: newFontSize };
            break;
          }
         default: 
-          break; // Ignore non-resizable types like line
+          break; 
       }
 
       if (Object.keys(update).length > 0) {
@@ -244,18 +222,15 @@ const Canvas: React.FC<CanvasProps> = ({
       }
 
     }
-    // Handle dragging multiple elements
     else if (isDraggingMultiple) {
       const dx = currentMousePos.x - dragStartPos.x;
       const dy = currentMousePos.y - dragStartPos.y;
       
-      // Only perform the drag if there's actual movement
       if (dx !== 0 || dy !== 0) {
         onDragMultipleElements(dx, dy);
         setDragStartPos(currentMousePos);
       }
     }
-    // Handle dragging a single element
     else if (isDragging && activeElementId) {
       const selectedElement = elements.find(el => el.id === activeElementId);
       if (!selectedElement) return;
@@ -278,34 +253,26 @@ const Canvas: React.FC<CanvasProps> = ({
       }
       setDragStartPos(currentMousePos);
     }
-    // Handle Marquee Selection
     else if (isMarqueeSelecting && marqueeStartPos) {
        setMarqueeEndPos(currentMousePos);
     }
   };
 
-  // Handle mouse up (end of drag/resize/endpoint move/marquee)
   const handleMouseUp = () => {
     if (isDraggingMultiple) {
-      // Apply final state to history after batch drag is complete
-      // This ensures the drag operation is one atomic undo step
       const selectedIds = elements.filter(el => el.selected).map(el => el.id);
-      
-      // Re-apply selection to ensure it's maintained after the drag completes
       if (selectedIds.length > 0) {
         onSelectMultipleElements(selectedIds);
       }
     }
     
     if (isMarqueeSelecting && marqueeStartPos && marqueeEndPos) {
-       // Determine elements within the marquee
        const minX = Math.min(marqueeStartPos.x, marqueeEndPos.x);
        const maxX = Math.max(marqueeStartPos.x, marqueeEndPos.x);
        const minY = Math.min(marqueeStartPos.y, marqueeEndPos.y);
        const maxY = Math.max(marqueeStartPos.y, marqueeEndPos.y);
        
        const selectedIds = elements.filter(el => {
-          // Simple center point check for now (can be improved to check bounds)
           return el.position.x >= minX && el.position.x <= maxX &&
                  el.position.y >= minY && el.position.y <= maxY;
        }).map(el => el.id);
@@ -313,7 +280,6 @@ const Canvas: React.FC<CanvasProps> = ({
        onSelectMultipleElements(selectedIds);
     }
     
-    // Reset all states
     setIsDragging(false);
     setIsResizing(false);
     setResizeHandle(null);
@@ -326,10 +292,8 @@ const Canvas: React.FC<CanvasProps> = ({
     setIsDraggingMultiple(false);
   };
 
-  // Handle mouse leave (reset marquee as well)
   const handleMouseLeave = () => {
     if (isResizing || isDragging || isMovingEndpoint || isMarqueeSelecting || isDraggingMultiple) {
-       // Reset all states
        setIsDragging(false);
        setIsResizing(false);
        setResizeHandle(null);
@@ -343,9 +307,7 @@ const Canvas: React.FC<CanvasProps> = ({
     }
   };
 
-  // Handle mouse down on canvas
   const handleMouseDown = (e: React.MouseEvent) => {
-    // Ignore clicks on handles first
     if ((e.target as SVGElement).classList?.contains('resize-handle') || 
         (e.target as SVGElement).classList?.contains('line-endpoint-handle')) {
        return; 
@@ -359,29 +321,19 @@ const Canvas: React.FC<CanvasProps> = ({
     const isClickOnSelectedElement = clickedElement?.selected ?? false;
     const selectedElementIds = elements.filter(el => el.selected).map(el => el.id);
 
-    // Case 1: Click on an element that's part of a multi-selection? Start multi-drag.
     if (isClickOnSelectedElement && selectedElementsCount > 1 && !shiftKeyPressed) {
-        // Important: Keep the current selection intact, don't call onSelectElement
-        // We specifically want to preserve the multi-selection
-        
         setIsDraggingMultiple(true);
-        setDragStartPos(position); // Use current canvas coordinates
+        setDragStartPos(position);
         setActiveElementId(clickedElementId);
-        
-        // Re-apply multi-selection to ensure state is fresh
         onSelectMultipleElements(selectedElementIds);
-        
-        // Reset other modes
         setIsDragging(false);
         setIsResizing(false); 
         setIsMarqueeSelecting(false);
         setMovingPointInfo(null);
         setResizeStartState(null);
     }
-    // Case 2: Click on any element (selected or not)
     else if (clickedElementId && clickedElement) {
         if (shiftKeyPressed) {
-            // Toggle selection: Add if unselected, remove if selected
             const currentSelection = elements.filter(el => el.selected).map(el => el.id);
             let newSelectionIds;
             if (isClickOnSelectedElement) { 
@@ -390,7 +342,6 @@ const Canvas: React.FC<CanvasProps> = ({
                 newSelectionIds = [...currentSelection, clickedElementId];
             }
             onSelectMultipleElements(newSelectionIds); 
-            // Reset interaction modes, important not to start drag on shift-click
             setIsDragging(false); 
             setIsDraggingMultiple(false);
             setIsResizing(false); 
@@ -398,15 +349,12 @@ const Canvas: React.FC<CanvasProps> = ({
             setMovingPointInfo(null);
             setResizeStartState(null);
         } else {
-            // Normal single element select/drag start
-            // Select *only* this one if it wasn't already the sole selected item
             if (!isClickOnSelectedElement || selectedElementsCount !== 1) {
               onSelectElement(clickedElementId); 
             }
             setIsDragging(true); 
-            setDragStartPos(position); // Use current canvas coordinates
+            setDragStartPos(position);
             setActiveElementId(clickedElementId);
-             // Reset other modes
             setIsResizing(false); 
             setIsMarqueeSelecting(false);
             setIsDraggingMultiple(false);
@@ -414,13 +362,11 @@ const Canvas: React.FC<CanvasProps> = ({
             setResizeStartState(null);
         }
     }
-    // Case 3: Click on empty space - Start marquee selection
     else {
-      onSelectElement(null); // Deselect all
+      onSelectElement(null);
       setIsMarqueeSelecting(true);
       setMarqueeStartPos(position);
       setMarqueeEndPos(position); 
-      // Reset other modes
       setIsDragging(false);
       setIsResizing(false);
       setIsDraggingMultiple(false);
@@ -452,9 +398,8 @@ const Canvas: React.FC<CanvasProps> = ({
         width={canvasWidth} 
         height={canvasHeight} 
         viewBox={`0 0 ${canvasWidth} ${canvasHeight}`}
-        style={{ overflow: 'visible' }} // Allow marquee rect to potentially go outside
+        style={{ overflow: 'visible' }}
       >
-        {/* Render elements in their proper z-index order */}
         {elements.map(element => (
           <SVGElement 
             key={element.id} 
@@ -464,18 +409,17 @@ const Canvas: React.FC<CanvasProps> = ({
           />
         ))}
 
-        {/* Render Marquee Selection Rectangle */}
         {isMarqueeSelecting && marqueeStartPos && marqueeEndPos && (
            <rect
               x={Math.min(marqueeStartPos.x, marqueeEndPos.x)}
               y={Math.min(marqueeStartPos.y, marqueeEndPos.y)}
               width={Math.abs(marqueeStartPos.x - marqueeEndPos.x)}
               height={Math.abs(marqueeStartPos.y - marqueeEndPos.y)}
-              fill="rgba(0, 100, 255, 0.1)" // Semi-transparent blue fill
-              stroke="rgba(0, 100, 255, 0.5)" // Blue stroke
-              strokeWidth={1 / zoomLevel} // Adjust stroke width based on zoom
-              vectorEffect="non-scaling-stroke" // Keep stroke consistent
-              pointerEvents="none" // Don't let it interfere with mouse events
+              fill="rgba(0, 100, 255, 0.1)" 
+              stroke="rgba(0, 100, 255, 0.5)" 
+              strokeWidth={1 / zoomLevel} 
+              vectorEffect="non-scaling-stroke" 
+              pointerEvents="none" 
            />
         )}
       </svg>

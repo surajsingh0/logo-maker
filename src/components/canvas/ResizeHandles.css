@@ -1,5 +1,5 @@
 .resize-handles {
-  pointer-events: none; /* Allow events to pass through to the handles themselves */
+  pointer-events: none;
 }
 
 .resize-handle {

@@ -49,14 +49,14 @@ const Toolbar: React.FC<ToolbarProps> = ({
   return (
     <div className="toolbar">
       <div className="toolbar-section">
-        <h3>Add Elements</h3>
+        <h3>Shapes</h3>
         <div className="toolbar-buttons">
           <button 
             className="toolbar-button" 
             onClick={onAddRectangle}
             title="Add Rectangle"
           >
-            <i className="icon">⬜</i>
+            <i className="icon">□</i>
             <span>Rectangle</span>
           </button>
           
@@ -65,17 +65,8 @@ const Toolbar: React.FC<ToolbarProps> = ({
             onClick={onAddCircle}
             title="Add Circle"
           >
-            <i className="icon">⭕</i>
+            <i className="icon">○</i>
             <span>Circle</span>
-          </button>
-          
-          <button 
-            className="toolbar-button" 
-            onClick={onAddText}
-            title="Add Text"
-          >
-            <i className="icon">T</i>
-            <span>Text</span>
           </button>
           
           <button 
@@ -83,17 +74,8 @@ const Toolbar: React.FC<ToolbarProps> = ({
             onClick={onAddEllipse}
             title="Add Ellipse"
           >
-            <i className="icon">&#x2B2D;</i>
+            <i className="icon">⬭</i>
             <span>Ellipse</span>
-          </button>
-          
-          <button 
-            className="toolbar-button" 
-            onClick={onAddLine}
-            title="Add Line"
-          >
-            <i className="icon">&#x2571;</i>
-            <span>Line</span>
           </button>
 
           <button 
@@ -113,51 +95,34 @@ const Toolbar: React.FC<ToolbarProps> = ({
             <i className="icon">★</i>
             <span>Star</span>
           </button>
-        </div>
-      </div>
-
-      <div className="toolbar-section">
-        <h3>History</h3>
-        <div className="toolbar-buttons">
-          <button 
-            className="toolbar-button" 
-            onClick={onUndo}
-            disabled={!canUndo}
-            title="Undo"
-          >
-            <i className="icon">↩️</i>
-            <span>Undo</span>
-          </button>
           
           <button 
             className="toolbar-button" 
-            onClick={onRedo}
-            disabled={!canRedo}
-            title="Redo"
+            onClick={onAddLine}
+            title="Add Line"
           >
-            <i className="icon">↪️</i>
-            <span>Redo</span>
+            <i className="icon">╱</i>
+            <span>Line</span>
           </button>
         </div>
       </div>
 
       <div className="toolbar-section">
-        <h3>Element</h3>
+        <h3>Text</h3>
         <div className="toolbar-buttons">
           <button 
             className="toolbar-button" 
-            onClick={onDelete}
-            disabled={!hasSelection}
-            title="Delete Selected"
+            onClick={onAddText}
+            title="Add Text"
           >
-            <i className="icon">🗑️</i>
-            <span>Delete</span>
+            <i className="icon">T</i>
+            <span>Text</span>
           </button>
         </div>
       </div>
 
       <div className="toolbar-section">
-        <h3>Layer</h3>
+        <h3>Arrange</h3>
         <div className="toolbar-buttons">
           <button 
             className="toolbar-button" 
@@ -165,7 +130,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
             disabled={!hasSelection}
             title="Bring to Front"
           >
-            <i className="icon">⏫</i>
+            <i className="icon">⤒</i>
             <span>Front</span>
           </button>
 
@@ -186,7 +151,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
             title="Send Backward"
           >
             <i className="icon">↓</i>
-            <span>Back</span>
+            <span>Backward</span>
           </button>
 
           <button 
@@ -195,8 +160,43 @@ const Toolbar: React.FC<ToolbarProps> = ({
             disabled={!hasSelection}
             title="Send to Back"
           >
-            <i className="icon">⏬</i>
-            <span>Bottom</span>
+            <i className="icon">⤓</i>
+            <span>Back</span>
+          </button>
+        </div>
+      </div>
+      
+      <div className="toolbar-section">
+        <h3>Edit</h3>
+        <div className="toolbar-buttons">
+          <button 
+            className="toolbar-button" 
+            onClick={onUndo}
+            disabled={!canUndo}
+            title="Undo"
+          >
+            <i className="icon">↩</i>
+            <span>Undo</span>
+          </button>
+          
+          <button 
+            className="toolbar-button" 
+            onClick={onRedo}
+            disabled={!canRedo}
+            title="Redo"
+          >
+            <i className="icon">↪</i>
+            <span>Redo</span>
+          </button>
+
+          <button 
+            className="toolbar-button" 
+            onClick={onDelete}
+            disabled={!hasSelection}
+            title="Delete Selected"
+          >
+            <i className="icon">✕</i>
+            <span>Delete</span>
           </button>
         </div>
       </div>
@@ -209,8 +209,8 @@ const Toolbar: React.FC<ToolbarProps> = ({
             onClick={onExportSVG}
             title="Export as SVG"
           >
-            <i className="icon">📁</i>
-            <span>SVG</span>
+            <i className="icon">💾</i>
+            <span>Export SVG</span>
           </button>
           
           <button 
@@ -218,8 +218,8 @@ const Toolbar: React.FC<ToolbarProps> = ({
             onClick={onExportPNG}
             title="Export as PNG"
           >
-            <i className="icon">📁</i>
-            <span>PNG</span>
+            <i className="icon">🖼️</i>
+            <span>Export PNG</span>
           </button>
         </div>
       </div>

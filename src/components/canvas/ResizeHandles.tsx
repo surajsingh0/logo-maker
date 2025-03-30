@@ -1,8 +1,7 @@
 import React from 'react';
-import { Position } from '../../types'; // LogoElement no longer needed directly
 import './ResizeHandles.css';
 
-type HandlePosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+type HandlePosition = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 
 // Define the expected bounds structure
 export interface ElementBounds {
@@ -22,16 +21,17 @@ const ResizeHandles: React.FC<ResizeHandlesProps> = ({ bbox, transform, onResize
   
   if (!bbox) return null; 
 
-  // Use local bbox coordinates
   const { x, y, width, height } = bbox; 
-  const handleSize = 8;
   
-  // Position handles relative to the local bbox origin (x, y)
-  const handles: { position: HandlePosition; x: number; y: number }[] = [
-    { position: 'top-left', x: x, y: y },
-    { position: 'top-right', x: x + width, y: y },
-    { position: 'bottom-left', x: x, y: y + height },
-    { position: 'bottom-right', x: x + width, y: y + height },
+  const handles: { position: HandlePosition; x: number; y: number; isCorner: boolean }[] = [
+    { position: 'nw', x: x, y: y, isCorner: true },
+    { position: 'ne', x: x + width, y: y, isCorner: true },
+    { position: 'se', x: x + width, y: y + height, isCorner: true },
+    { position: 'sw', x: x, y: y + height, isCorner: true },
+    { position: 'n', x: x + width/2, y: y, isCorner: false },
+    { position: 'e', x: x + width, y: y + height/2, isCorner: false },
+    { position: 's', x: x + width/2, y: y + height, isCorner: false },
+    { position: 'w', x: x, y: y + height/2, isCorner: false },
   ];
 
   const handleMouseDown = (e: React.MouseEvent, handle: HandlePosition) => {
@@ -39,34 +39,22 @@ const ResizeHandles: React.FC<ResizeHandlesProps> = ({ bbox, transform, onResize
     onResizeStart(handle, e);
   };
 
-  // Apply the element's transform to the group containing the handles
   return (
     <g className="resize-handles" transform={transform}>
-      {handles.map(({ position: handlePosition, x, y }) => {
-        const cursor = 
-          (handlePosition === 'top-left' || handlePosition === 'bottom-right') 
-            ? 'nwse-resize' 
-            : 'nesw-resize';
-
-        return (
-          <rect
-            key={handlePosition}
-            className={`resize-handle ${handlePosition}`}
-            // Position handle centers at the bbox corners
-            x={x - handleSize / 2}
-            y={y - handleSize / 2}
-            width={handleSize}
-            height={handleSize}
-            fill="white"
-            stroke="#2196f3"
-            strokeWidth={1}
-            style={{ cursor }}
-            // Prevent element transform from affecting handle stroke width
-            vectorEffect="non-scaling-stroke" 
-            onMouseDown={(e) => handleMouseDown(e, handlePosition)}
-          />
-        );
-      })}
+      {handles.map(({ position, x, y, isCorner }) => (
+        <circle
+          key={position}
+          className={`resize-handle ${position} ${isCorner ? 'corner' : ''}`}
+          cx={x}
+          cy={y}
+          r={isCorner ? 6 : 5}
+          fill="white"
+          stroke="#2196f3"
+          strokeWidth={1.5}
+          vectorEffect="non-scaling-stroke"
+          onMouseDown={(e) => handleMouseDown(e, position)}
+        />
+      ))}
     </g>
   );
 };
