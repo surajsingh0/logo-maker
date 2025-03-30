@@ -15,19 +15,39 @@ export interface ElementStyles {
   opacity: number;
 }
 
+// Define element types
+export type ElementType = 
+  | 'rectangle' 
+  | 'circle' 
+  | 'text' 
+  | 'path'
+  | 'ellipse'
+  | 'line'
+  | 'polygon'
+  | 'star';
+
+// Define the base structure for all logo elements
 export interface LogoElement {
   id: string;
-  type: 'rectangle' | 'circle' | 'text' | 'path';
+  type: ElementType;
   position: Position;
-  dimensions?: Dimensions;
   styles: ElementStyles;
   rotation: number;
-  content?: string; // For text elements
-  points?: Position[]; // For paths
-  radius?: number; // For circles
-  fontFamily?: string; // For text
-  fontSize?: number; // For text
   selected: boolean;
+
+  // Type-specific properties
+  dimensions?: { width: number; height: number };
+  radius?: number;
+  rx?: number;
+  ry?: number;
+  points?: Position[];
+  content?: string;
+  fontFamily?: string;
+  fontSize?: number;
+  sides?: number;
+  outerRadius?: number;
+  innerRadius?: number;
+  numPoints?: number;
 }
 
 export interface CanvasSettings {

@@ -5,6 +5,10 @@ interface ToolbarProps {
   onAddRectangle: () => void;
   onAddCircle: () => void;
   onAddText: () => void;
+  onAddEllipse: () => void;
+  onAddLine: () => void;
+  onAddPolygon: () => void;
+  onAddStar: () => void;
   onUndo: () => void;
   onRedo: () => void;
   onDelete: () => void;
@@ -19,6 +23,10 @@ const Toolbar: React.FC<ToolbarProps> = ({
   onAddRectangle,
   onAddCircle,
   onAddText,
+  onAddEllipse,
+  onAddLine,
+  onAddPolygon,
+  onAddStar,
   onUndo,
   onRedo,
   onDelete,
@@ -58,6 +66,42 @@ const Toolbar: React.FC<ToolbarProps> = ({
           >
             <i className="icon">T</i>
             <span>Text</span>
+          </button>
+          
+          <button 
+            className="toolbar-button" 
+            onClick={onAddEllipse}
+            title="Add Ellipse"
+          >
+            <i className="icon">&#x2B2D;</i>
+            <span>Ellipse</span>
+          </button>
+          
+          <button 
+            className="toolbar-button" 
+            onClick={onAddLine}
+            title="Add Line"
+          >
+            <i className="icon">&#x2571;</i>
+            <span>Line</span>
+          </button>
+
+          <button 
+            className="toolbar-button" 
+            onClick={onAddPolygon}
+            title="Add Polygon (Triangle)"
+          >
+            <i className="icon">△</i>
+            <span>Polygon</span>
+          </button>
+
+          <button 
+            className="toolbar-button" 
+            onClick={onAddStar}
+            title="Add Star"
+          >
+            <i className="icon">★</i>
+            <span>Star</span>
           </button>
         </div>
       </div>

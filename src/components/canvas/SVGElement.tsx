@@ -143,6 +143,141 @@ const SVGElement: React.FC<SVGElementProps> = ({ element }) => {
         </g>
       );
 
+    case 'ellipse':
+      const rx = element.rx || 0;
+      const ry = element.ry || 0;
+
+      return (
+        <g>
+          <ellipse
+            cx={position.x}
+            cy={position.y}
+            rx={rx}
+            ry={ry}
+            fill={fill}
+            stroke={stroke}
+            strokeWidth={strokeWidth}
+            opacity={opacity}
+            transform={transform}
+          />
+          {element.selected && (
+            <ellipse
+              cx={position.x}
+              cy={position.y}
+              rx={rx + 2}
+              ry={ry + 2}
+              fill="none"
+              {...selectedStyle}
+              transform={transform}
+            />
+          )}
+        </g>
+      );
+
+    case 'line':
+      const linePoints = element.points || [];
+      if (linePoints.length < 2) return null; // Need at least two points
+      const p1 = linePoints[0];
+      const p2 = linePoints[1];
+
+      return (
+        <g>
+          <line
+            x1={p1.x}
+            y1={p1.y}
+            x2={p2.x}
+            y2={p2.y}
+            stroke={stroke}
+            strokeWidth={strokeWidth}
+            opacity={opacity}
+            // Lines are defined by points, transform origin might need adjustment
+            // For simplicity, applying rotation around the element's defined center
+            transform={transform}
+          />
+          {element.selected && (
+            <line
+              x1={p1.x}
+              y1={p1.y}
+              x2={p2.x}
+              y2={p2.y}
+              fill="none"
+              {...selectedStyle}
+              transform={transform}
+            />
+          )}
+        </g>
+      );
+
+    case 'polygon': {
+      const sides = element.sides || 3;
+      const polyRadius = element.radius || 0;
+      const polyPoints: string[] = [];
+      for (let i = 0; i < sides; i++) {
+        const angle = (i / sides) * 2 * Math.PI - Math.PI / 2; // Start from top
+        const px = position.x + polyRadius * Math.cos(angle);
+        const py = position.y + polyRadius * Math.sin(angle);
+        polyPoints.push(`${px},${py}`);
+      }
+      const pointsStr = polyPoints.join(' ');
+
+      return (
+        <g>
+          <polygon
+            points={pointsStr}
+            fill={fill}
+            stroke={stroke}
+            strokeWidth={strokeWidth}
+            opacity={opacity}
+            transform={transform} 
+          />
+          {element.selected && (
+             <polygon
+              points={pointsStr}
+              fill="none"
+              {...selectedStyle}
+              transform={transform}
+            />
+          )}
+        </g>
+      );
+    }
+
+    case 'star': {
+      const numPoints = element.numPoints || 5;
+      const outerRadius = element.outerRadius || 0;
+      const innerRadius = element.innerRadius || outerRadius / 2;
+      const starPoints: string[] = [];
+      for (let i = 0; i < numPoints * 2; i++) {
+        const radius = i % 2 === 0 ? outerRadius : innerRadius;
+        const angle = (i / (numPoints * 2)) * 2 * Math.PI - Math.PI / 2; // Start from top
+        const px = position.x + radius * Math.cos(angle);
+        const py = position.y + radius * Math.sin(angle);
+        starPoints.push(`${px},${py}`);
+      }
+      const pointsStr = starPoints.join(' ');
+
+      return (
+        <g>
+          <polygon
+            points={pointsStr}
+            fill={fill}
+            stroke={stroke}
+            strokeWidth={strokeWidth}
+            opacity={opacity}
+            transform={transform}
+          />
+           {element.selected && (
+             <polygon
+              points={pointsStr}
+              fill="none"
+              {...selectedStyle}
+              transform={transform}
+            />
+          )}
+        </g>
+      );
+    }
+
     default:
       return null;
   }

@@ -4,7 +4,15 @@ import Canvas from './components/canvas/Canvas';
 import Toolbar from './components/controls/Toolbar';
 import ElementProperties from './components/controls/ElementProperties';
 import { exportSvg, exportPng } from './utils/exportUtils';
-import { createRectangle, createCircle, createText } from './utils/elementUtils';
+import { 
+  createRectangle, 
+  createCircle, 
+  createText, 
+  createEllipse,
+  createLine,
+  createPolygon,
+  createStar
+} from './utils/elementUtils';
 import './App.css';
 
 function App() {
@@ -56,6 +64,43 @@ function App() {
     addElement(createText(center, 'Your Text'));
   };
 
+  const handleAddEllipse = () => {
+    const center = {
+      x: canvasSettings.width / 2,
+      y: canvasSettings.height / 2,
+    };
+    addElement(createEllipse(center));
+  };
+
+  const handleAddLine = () => {
+    const start = {
+      x: canvasSettings.width / 2 - 50,
+      y: canvasSettings.height / 2 - 30,
+    };
+    const end = {
+      x: canvasSettings.width / 2 + 50,
+      y: canvasSettings.height / 2 + 30,
+    };
+    addElement(createLine(start, end));
+  };
+
+  const handleAddPolygon = () => {
+    const center = {
+      x: canvasSettings.width / 2,
+      y: canvasSettings.height / 2,
+    };
+    // Default to triangle
+    addElement(createPolygon(center, 3)); 
+  };
+
+  const handleAddStar = () => {
+    const center = {
+      x: canvasSettings.width / 2,
+      y: canvasSettings.height / 2,
+    };
+    addElement(createStar(center));
+  };
+
   // Element drag handler
   const handleElementDrag = (elementId: string, newPosition: { x: number; y: number }) => {
     const element = elements.find(el => el.id === elementId);
@@ -84,6 +129,10 @@ function App() {
         onAddRectangle={handleAddRectangle}
         onAddCircle={handleAddCircle}
         onAddText={handleAddText}
+        onAddEllipse={handleAddEllipse}
+        onAddLine={handleAddLine}
+        onAddPolygon={handleAddPolygon}
+        onAddStar={handleAddStar}
         onUndo={undo}
         onRedo={redo}
         onDelete={() => selectedElementId && removeElement(selectedElementId)}

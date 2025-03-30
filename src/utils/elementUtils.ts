@@ -86,6 +86,83 @@ export const createPath = (points: Position[]): LogoElement => {
   };
 };
 
+// Create a new ellipse element
+export const createEllipse = (position: Position): LogoElement => {
+  return {
+    id: generateId(),
+    type: 'ellipse',
+    position,
+    rx: 60, // Default horizontal radius
+    ry: 40, // Default vertical radius
+    styles: {
+      fill: '#f1c40f',
+      stroke: '#f39c12',
+      strokeWidth: 2,
+      opacity: 1,
+    },
+    rotation: 0,
+    selected: false,
+  };
+};
+
+// Create a new line element
+export const createLine = (start: Position, end: Position): LogoElement => {
+  return {
+    id: generateId(),
+    type: 'line',
+    // Position might represent the midpoint or start, store actual points
+    position: { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 },
+    points: [start, end],
+    styles: {
+      fill: 'none',
+      stroke: '#95a5a6',
+      strokeWidth: 4,
+      opacity: 1,
+    },
+    rotation: 0,
+    selected: false,
+  };
+};
+
+// Create a regular polygon element (e.g., triangle, pentagon)
+export const createPolygon = (position: Position, sides: number = 3, radius: number = 50): LogoElement => {
+  return {
+    id: generateId(),
+    type: 'polygon',
+    position,
+    sides,
+    radius, // Represents distance from center to vertex
+    styles: {
+      fill: '#2ecc71',
+      stroke: '#27ae60',
+      strokeWidth: 2,
+      opacity: 1,
+    },
+    rotation: 0,
+    selected: false,
+  };
+};
+
+// Create a star element
+export const createStar = (position: Position, numPoints: number = 5, outerRadius: number = 50, innerRadius: number = 25): LogoElement => {
+  return {
+    id: generateId(),
+    type: 'star',
+    position,
+    numPoints,
+    outerRadius,
+    innerRadius,
+    styles: {
+      fill: '#9b59b6',
+      stroke: '#8e44ad',
+      strokeWidth: 2,
+      opacity: 1,
+    },
+    rotation: 0,
+    selected: false,
+  };
+};
+
 // Calculate element bounds (useful for selection and transformations)
 export const getElementBounds = (element: LogoElement): { top: number; left: number; right: number; bottom: number } => {
   const { position, type } = element;
@@ -168,6 +245,7 @@ export const isPointInElement = (element: LogoElement, point: Position): boolean
     case 'rectangle': {
       const { width = 0, height = 0 } = element.dimensions || {};
       // Check against the rectangle defined from (0,0) to (width, height)
+      // For rectangles, position (cx, cy) is top-left. Adjust check accordingly.
       return 0 <= rotatedX && rotatedX <= width && 0 <= rotatedY && rotatedY <= height;
     }
 
@@ -175,6 +253,43 @@ export const isPointInElement = (element: LogoElement, point: Position): boolean
       const radius = element.radius || 0;
       // Distance check from the center (which is the origin for rotatedX, rotatedY)
       return (rotatedX * rotatedX + rotatedY * rotatedY) <= (radius * radius);
+    }
+
+    case 'ellipse': {
+      const rx = element.rx || 0;
+      const ry = element.ry || 0;
+      if (rx <= 0 || ry <= 0) return false;
+      // Ellipse equation check relative to center (origin for rotatedX, rotatedY)
+      return (rotatedX * rotatedX) / (rx * rx) + (rotatedY * rotatedY) / (ry * ry) <= 1;
+    }
+
+    case 'line': {
+      const linePoints = element.points || [];
+      if (linePoints.length < 2) return false;
+      const p1 = linePoints[0];
+      const p2 = linePoints[1];
+      const tolerance = (element.styles.strokeWidth || 2) / 2 + 2; // Click tolerance
+
+      // Calculate relative points for un-rotated check
+      const relP1x = p1.x - cx;
+      const relP1y = p1.y - cy;
+      const relP2x = p2.x - cx;
+      const relP2y = p2.y - cy;
+
+      // Check distance from point (rotatedX, rotatedY) to the line segment (relP1, relP2)
+      const lenSq = (relP2x - relP1x)**2 + (relP2y - relP1y)**2;
+      if (lenSq === 0) { // Points are the same
+        return (rotatedX - relP1x)**2 + (rotatedY - relP1y)**2 <= tolerance**2;
+      }
+      
+      let t = ((rotatedX - relP1x) * (relP2x - relP1x) + (rotatedY - relP1y) * (relP2y - relP1y)) / lenSq;
+      t = Math.max(0, Math.min(1, t)); // Clamp t to [0, 1]
+      
+      const closestX = relP1x + t * (relP2x - relP1x);
+      const closestY = relP1y + t * (relP2y - relP1y);
+      
+      const distSq = (rotatedX - closestX)**2 + (rotatedY - closestY)**2;
+      return distSq <= tolerance**2;
     }
 
     case 'text': {
@@ -202,6 +317,50 @@ export const isPointInElement = (element: LogoElement, point: Position): boolean
         relativeLeft <= rotatedX && rotatedX <= relativeRight &&
         relativeTop <= rotatedY && rotatedY <= relativeBottom
       );
+    }
+    
+    case 'polygon':
+    case 'star': { // Polygons and stars use the same logic
+      let vertices: Position[] = [];
+      if (type === 'polygon') {
+        const sides = element.sides || 3;
+        const polyRadius = element.radius || 0;
+        for (let i = 0; i < sides; i++) {
+          const angle = (i / sides) * 2 * Math.PI - Math.PI / 2;
+          // Vertices relative to the center (cx, cy)
+          vertices.push({ 
+            x: polyRadius * Math.cos(angle),
+            y: polyRadius * Math.sin(angle)
+          });
+        }
+      } else { // Star
+        const numPoints = element.numPoints || 5;
+        const outerRadius = element.outerRadius || 0;
+        const innerRadius = element.innerRadius || outerRadius / 2;
+        for (let i = 0; i < numPoints * 2; i++) {
+          const radius = i % 2 === 0 ? outerRadius : innerRadius;
+          const angle = (i / (numPoints * 2)) * 2 * Math.PI - Math.PI / 2;
+          // Vertices relative to the center (cx, cy)
+           vertices.push({ 
+             x: radius * Math.cos(angle),
+             y: radius * Math.sin(angle)
+           });
+        }
+      }
+
+      // Ray Casting Algorithm (point in polygon test)
+      // Check against the un-rotated point (rotatedX, rotatedY)
+      // and the un-rotated vertices (relative to center)
+      let inside = false;
+      for (let i = 0, j = vertices.length - 1; i < vertices.length; j = i++) {
+        const xi = vertices[i].x, yi = vertices[i].y;
+        const xj = vertices[j].x, yj = vertices[j].y;
+
+        const intersect = ((yi > rotatedY) !== (yj > rotatedY))
+            && (rotatedX < (xj - xi) * (rotatedY - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+      }
+      return inside;
     }
 
     default:
