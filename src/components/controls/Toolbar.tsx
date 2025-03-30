@@ -12,10 +12,6 @@ interface ToolbarProps {
   onUndo: () => void;
   onRedo: () => void;
   onDelete: () => void;
-  onBringForward: () => void;
-  onSendBackward: () => void;
-  onBringToFront: () => void;
-  onSendToBack: () => void;
   onExportSVG: () => void;
   onExportPNG: () => void;
   canUndo: boolean;
@@ -34,10 +30,6 @@ const Toolbar: React.FC<ToolbarProps> = ({
   onUndo,
   onRedo,
   onDelete,
-  onBringForward,
-  onSendBackward,
-  onBringToFront,
-  onSendToBack,
   onExportSVG,
   onExportPNG,
   canUndo,
@@ -145,44 +137,6 @@ const Toolbar: React.FC<ToolbarProps> = ({
           >
             <i className="icon">🗑️</i>
             <span>Delete</span>
-          </button>
-        </div>
-      </div>
-
-      <div className="toolbar-section">
-        <h3>Arrange</h3>
-        <div className="toolbar-buttons">
-          <button 
-            className="toolbar-button" 
-            onClick={onBringForward}
-            disabled={!hasSelectedElement}
-            title="Bring Forward"
-          >
-            <i className="icon">🔼</i>
-          </button>
-          <button 
-            className="toolbar-button" 
-            onClick={onSendBackward}
-            disabled={!hasSelectedElement}
-            title="Send Backward"
-          >
-            <i className="icon">🔽</i>
-          </button>
-          <button 
-            className="toolbar-button" 
-            onClick={onBringToFront}
-            disabled={!hasSelectedElement}
-            title="Bring to Front"
-          >
-            <i className="icon">⏫</i>
-          </button>
-          <button 
-            className="toolbar-button" 
-            onClick={onSendToBack}
-            disabled={!hasSelectedElement}
-            title="Send to Back"
-          >
-            <i className="icon">⏬</i>
           </button>
         </div>
       </div>
