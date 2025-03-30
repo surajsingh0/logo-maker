@@ -20,7 +20,8 @@ interface ToolbarProps {
   onSendToBack: () => void;
   canUndo: boolean;
   canRedo: boolean;
-  hasSelectedElement: boolean;
+  hasSelection: boolean;
+  hasMultiSelection: boolean;
 }
 
 const Toolbar: React.FC<ToolbarProps> = ({
@@ -42,7 +43,8 @@ const Toolbar: React.FC<ToolbarProps> = ({
   onSendToBack,
   canUndo,
   canRedo,
-  hasSelectedElement,
+  hasSelection,
+  hasMultiSelection,
 }) => {
   return (
     <div className="toolbar">
@@ -145,7 +147,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
           <button 
             className="toolbar-button" 
             onClick={onDelete}
-            disabled={!hasSelectedElement}
+            disabled={!hasSelection}
             title="Delete Selected"
           >
             <i className="icon">🗑️</i>
@@ -160,7 +162,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
           <button 
             className="toolbar-button" 
             onClick={onBringToFront}
-            disabled={!hasSelectedElement}
+            disabled={!hasSelection}
             title="Bring to Front"
           >
             <i className="icon">⏫</i>
@@ -170,7 +172,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
           <button 
             className="toolbar-button" 
             onClick={onBringForward}
-            disabled={!hasSelectedElement}
+            disabled={!hasSelection}
             title="Bring Forward"
           >
             <i className="icon">↑</i>
@@ -180,7 +182,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
           <button 
             className="toolbar-button" 
             onClick={onSendBackward}
-            disabled={!hasSelectedElement}
+            disabled={!hasSelection}
             title="Send Backward"
           >
             <i className="icon">↓</i>
@@ -190,7 +192,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
           <button 
             className="toolbar-button" 
             onClick={onSendToBack}
-            disabled={!hasSelectedElement}
+            disabled={!hasSelection}
             title="Send to Back"
           >
             <i className="icon">⏬</i>

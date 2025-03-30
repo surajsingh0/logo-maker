@@ -17,6 +17,8 @@ interface CanvasProps {
   onElementDrag: (elementId: string, updates: Partial<Pick<LogoElement, 'position' | 'points'>>) => void;
   onElementResize: (elementId: string, updates: Partial<LogoElement>) => void;
   onElementPointUpdate: (elementId: string, pointIndex: number, newPosition: Position) => void;
+  onSelectMultipleElements: (elementIds: string[]) => void;
+  onDragMultipleElements: (dx: number, dy: number) => void;
 }
 
 interface ResizeStartState {
@@ -43,6 +45,8 @@ const Canvas: React.FC<CanvasProps> = ({
   onElementDrag,
   onElementResize,
   onElementPointUpdate,
+  onSelectMultipleElements,
+  onDragMultipleElements,
 }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -53,6 +57,10 @@ const Canvas: React.FC<CanvasProps> = ({
   const [resizeStartState, setResizeStartState] = useState<ResizeStartState | null>(null);
   const [isMovingEndpoint, setIsMovingEndpoint] = useState<boolean>(false);
   const [movingPointInfo, setMovingPointInfo] = useState<MovingPointInfo | null>(null);
+  const [isMarqueeSelecting, setIsMarqueeSelecting] = useState<boolean>(false);
+  const [marqueeStartPos, setMarqueeStartPos] = useState<Position | null>(null);
+  const [marqueeEndPos, setMarqueeEndPos] = useState<Position | null>(null);
+  const [isDraggingMultiple, setIsDraggingMultiple] = useState<boolean>(false);
 
   useEffect(() => {
     const selectedElement = elements.find(el => el.selected);
@@ -98,7 +106,7 @@ const Canvas: React.FC<CanvasProps> = ({
     setIsResizing(false);
   };
 
-  // Handle mouse move (for dragging, resizing shapes, and moving points)
+  // Handle mouse move (for dragging, resizing shapes, moving points, and marquee selection)
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!canvasRef.current) return;
     
@@ -235,7 +243,20 @@ const Canvas: React.FC<CanvasProps> = ({
          onElementResize(activeElementId, update);
       }
 
-    } else if (isDragging && activeElementId) {
+    }
+    // Handle dragging multiple elements
+    else if (isDraggingMultiple) {
+      const dx = currentMousePos.x - dragStartPos.x;
+      const dy = currentMousePos.y - dragStartPos.y;
+      
+      // Only perform the drag if there's actual movement
+      if (dx !== 0 || dy !== 0) {
+        onDragMultipleElements(dx, dy);
+        setDragStartPos(currentMousePos);
+      }
+    }
+    // Handle dragging a single element
+    else if (isDragging && activeElementId) {
       const selectedElement = elements.find(el => el.id === activeElementId);
       if (!selectedElement) return;
       const dx = currentMousePos.x - dragStartPos.x;
@@ -257,51 +278,154 @@ const Canvas: React.FC<CanvasProps> = ({
       }
       setDragStartPos(currentMousePos);
     }
+    // Handle Marquee Selection
+    else if (isMarqueeSelecting && marqueeStartPos) {
+       setMarqueeEndPos(currentMousePos);
+    }
   };
 
-  // Handle mouse up (end of drag/resize/endpoint move)
+  // Handle mouse up (end of drag/resize/endpoint move/marquee)
   const handleMouseUp = () => {
+    if (isDraggingMultiple) {
+      // Apply final state to history after batch drag is complete
+      // This ensures the drag operation is one atomic undo step
+      const selectedIds = elements.filter(el => el.selected).map(el => el.id);
+      
+      // Re-apply selection to ensure it's maintained after the drag completes
+      if (selectedIds.length > 0) {
+        onSelectMultipleElements(selectedIds);
+      }
+    }
+    
+    if (isMarqueeSelecting && marqueeStartPos && marqueeEndPos) {
+       // Determine elements within the marquee
+       const minX = Math.min(marqueeStartPos.x, marqueeEndPos.x);
+       const maxX = Math.max(marqueeStartPos.x, marqueeEndPos.x);
+       const minY = Math.min(marqueeStartPos.y, marqueeEndPos.y);
+       const maxY = Math.max(marqueeStartPos.y, marqueeEndPos.y);
+       
+       const selectedIds = elements.filter(el => {
+          // Simple center point check for now (can be improved to check bounds)
+          return el.position.x >= minX && el.position.x <= maxX &&
+                 el.position.y >= minY && el.position.y <= maxY;
+       }).map(el => el.id);
+       
+       onSelectMultipleElements(selectedIds);
+    }
+    
+    // Reset all states
     setIsDragging(false);
     setIsResizing(false);
     setResizeHandle(null);
     setResizeStartState(null); 
-    setIsMovingEndpoint(false); // Clear endpoint move state
+    setIsMovingEndpoint(false); 
     setMovingPointInfo(null);
+    setIsMarqueeSelecting(false);
+    setMarqueeStartPos(null);
+    setMarqueeEndPos(null);
+    setIsDraggingMultiple(false);
   };
 
-  // Handle mouse leave (similar to mouse up)
+  // Handle mouse leave (reset marquee as well)
   const handleMouseLeave = () => {
-    if (isResizing || isDragging || isMovingEndpoint) {
-       // Reset all states on mouse leave
+    if (isResizing || isDragging || isMovingEndpoint || isMarqueeSelecting || isDraggingMultiple) {
+       // Reset all states
        setIsDragging(false);
        setIsResizing(false);
        setResizeHandle(null);
        setResizeStartState(null);
        setIsMovingEndpoint(false);
        setMovingPointInfo(null);
+       setIsMarqueeSelecting(false);
+       setMarqueeStartPos(null);
+       setMarqueeEndPos(null);
+       setIsDraggingMultiple(false);
     }
   };
 
   // Handle mouse down on canvas
   const handleMouseDown = (e: React.MouseEvent) => {
+    // Ignore clicks on handles first
     if ((e.target as SVGElement).classList?.contains('resize-handle') || 
         (e.target as SVGElement).classList?.contains('line-endpoint-handle')) {
-       return; // Ignore clicks on any handle
+       return; 
     }
     
     const position = getCanvasCoordinates(e);
-    const selectedId = onSelectElementAtPosition(position);
-    
-    if (selectedId) {
-      setIsDragging(true);
-      setDragStartPos(position);
-      setActiveElementId(selectedId);
-      // Ensure resizing state is cleared if clicking on an element directly
-      setIsResizing(false); 
+    const clickedElementId = onSelectElementAtPosition(position);
+    const clickedElement = clickedElementId ? elements.find(el => el.id === clickedElementId) : null;
+    const shiftKeyPressed = e.shiftKey;
+    const selectedElementsCount = elements.filter(el => el.selected).length;
+    const isClickOnSelectedElement = clickedElement?.selected ?? false;
+    const selectedElementIds = elements.filter(el => el.selected).map(el => el.id);
+
+    // Case 1: Click on an element that's part of a multi-selection? Start multi-drag.
+    if (isClickOnSelectedElement && selectedElementsCount > 1 && !shiftKeyPressed) {
+        // Important: Keep the current selection intact, don't call onSelectElement
+        // We specifically want to preserve the multi-selection
+        
+        setIsDraggingMultiple(true);
+        setDragStartPos(position); // Use current canvas coordinates
+        setActiveElementId(clickedElementId);
+        
+        // Re-apply multi-selection to ensure state is fresh
+        onSelectMultipleElements(selectedElementIds);
+        
+        // Reset other modes
+        setIsDragging(false);
+        setIsResizing(false); 
+        setIsMarqueeSelecting(false);
+        setMovingPointInfo(null);
+        setResizeStartState(null);
+    }
+    // Case 2: Click on any element (selected or not)
+    else if (clickedElementId && clickedElement) {
+        if (shiftKeyPressed) {
+            // Toggle selection: Add if unselected, remove if selected
+            const currentSelection = elements.filter(el => el.selected).map(el => el.id);
+            let newSelectionIds;
+            if (isClickOnSelectedElement) { 
+                newSelectionIds = currentSelection.filter(id => id !== clickedElementId);
+            } else { 
+                newSelectionIds = [...currentSelection, clickedElementId];
+            }
+            onSelectMultipleElements(newSelectionIds); 
+            // Reset interaction modes, important not to start drag on shift-click
+            setIsDragging(false); 
+            setIsDraggingMultiple(false);
+            setIsResizing(false); 
+            setIsMarqueeSelecting(false);
+            setMovingPointInfo(null);
+            setResizeStartState(null);
+        } else {
+            // Normal single element select/drag start
+            // Select *only* this one if it wasn't already the sole selected item
+            if (!isClickOnSelectedElement || selectedElementsCount !== 1) {
+              onSelectElement(clickedElementId); 
+            }
+            setIsDragging(true); 
+            setDragStartPos(position); // Use current canvas coordinates
+            setActiveElementId(clickedElementId);
+             // Reset other modes
+            setIsResizing(false); 
+            setIsMarqueeSelecting(false);
+            setIsDraggingMultiple(false);
+            setMovingPointInfo(null);
+            setResizeStartState(null);
+        }
+    }
+    // Case 3: Click on empty space - Start marquee selection
+    else {
+      onSelectElement(null); // Deselect all
+      setIsMarqueeSelecting(true);
+      setMarqueeStartPos(position);
+      setMarqueeEndPos(position); 
+      // Reset other modes
+      setIsDragging(false);
+      setIsResizing(false);
+      setIsDraggingMultiple(false);
+      setMovingPointInfo(null);
       setResizeStartState(null);
-    } else {
-      onSelectElement(null);
-      setIsDragging(false); // Stop dragging if clicking empty space
     }
   };
 
@@ -328,7 +452,9 @@ const Canvas: React.FC<CanvasProps> = ({
         width={canvasWidth} 
         height={canvasHeight} 
         viewBox={`0 0 ${canvasWidth} ${canvasHeight}`}
+        style={{ overflow: 'visible' }} // Allow marquee rect to potentially go outside
       >
+        {/* Render elements in their proper z-index order */}
         {elements.map(element => (
           <SVGElement 
             key={element.id} 
@@ -337,6 +463,21 @@ const Canvas: React.FC<CanvasProps> = ({
             onEndpointDown={handleEndpointDown}
           />
         ))}
+
+        {/* Render Marquee Selection Rectangle */}
+        {isMarqueeSelecting && marqueeStartPos && marqueeEndPos && (
+           <rect
+              x={Math.min(marqueeStartPos.x, marqueeEndPos.x)}
+              y={Math.min(marqueeStartPos.y, marqueeEndPos.y)}
+              width={Math.abs(marqueeStartPos.x - marqueeEndPos.x)}
+              height={Math.abs(marqueeStartPos.y - marqueeEndPos.y)}
+              fill="rgba(0, 100, 255, 0.1)" // Semi-transparent blue fill
+              stroke="rgba(0, 100, 255, 0.5)" // Blue stroke
+              strokeWidth={1 / zoomLevel} // Adjust stroke width based on zoom
+              vectorEffect="non-scaling-stroke" // Keep stroke consistent
+              pointerEvents="none" // Don't let it interfere with mouse events
+           />
+        )}
       </svg>
     </div>
   );

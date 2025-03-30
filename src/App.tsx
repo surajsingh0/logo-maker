@@ -23,6 +23,7 @@ function App() {
     addElement,
     updateElement,
     removeElement,
+    removeSelectedElements,
     setSelectedElement,
     selectElementAtPosition,
     updateCanvasSettings,
@@ -35,7 +36,13 @@ function App() {
     canUndo,
     canRedo,
     updateElementPoint,
+    selectMultipleElements,
+    dragSelectedElements,
   } = useLogoState();
+
+  const selectedElements = elements.filter(el => el.selected);
+  const hasMultiSelection = selectedElements.length > 1;
+  const hasSelection = selectedElements.length > 0;
 
   const selectedElement = elements.find(el => el.id === selectedElementId) || null;
 
@@ -144,6 +151,27 @@ function App() {
     }
   };
 
+  // Delete handler - delete single or multiple
+  const handleDelete = () => {
+    if (hasMultiSelection) {
+       removeSelectedElements();
+    } else if (selectedElementId) {
+       removeElement(selectedElementId);
+    }
+  };
+
+  // Handler for dragging multiple elements
+  const handleDragMultipleElements = (dx: number, dy: number) => {
+    const currentSelectedElements = elements.filter(el => el.selected);
+    
+    // If no selection, quit early
+    if (currentSelectedElements.length === 0) {
+      return;
+    }
+    
+    dragSelectedElements(dx, dy);
+  };
+
   return (
     <div className="app">
       <Toolbar
@@ -156,7 +184,7 @@ function App() {
         onAddStar={handleAddStar}
         onUndo={undo}
         onRedo={redo}
-        onDelete={() => selectedElementId && removeElement(selectedElementId)}
+        onDelete={handleDelete}
         onExportSVG={handleExportSVG}
         onExportPNG={handleExportPNG}
         onBringForward={bringForward}
@@ -165,7 +193,8 @@ function App() {
         onSendToBack={sendToBack}
         canUndo={canUndo}
         canRedo={canRedo}
-        hasSelectedElement={!!selectedElementId}
+        hasSelection={hasSelection}
+        hasMultiSelection={hasMultiSelection}
       />
       
       <div className="main-content" ref={canvasRef}>
@@ -182,11 +211,13 @@ function App() {
           onElementDrag={handleElementDrag}
           onElementResize={handleElementResize}
           onElementPointUpdate={handleElementPointUpdate}
+          onSelectMultipleElements={selectMultipleElements}
+          onDragMultipleElements={handleDragMultipleElements}
         />
       </div>
       
       <ElementProperties
-        selectedElement={selectedElement}
+        selectedElement={hasMultiSelection ? null : selectedElement}
         onUpdateElement={updateElement}
       />
     </div>

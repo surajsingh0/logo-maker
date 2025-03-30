@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { LogoState, LogoElement, CanvasSettings, Position } from '../types';
 import { isPointInElement } from '../utils/elementUtils';
 
@@ -26,28 +26,38 @@ interface UpdateElementPointAction {
   payload: { elementId: string; pointIndex: number; newPosition: Position };
 }
 
+interface SelectMultipleElementsAction {
+  type: 'SELECT_MULTIPLE_ELEMENTS';
+  payload: string[]; // Array of element IDs
+}
+
 type LogoAction = 
-  | UpdateElementPointAction;
+  | UpdateElementPointAction
+  | SelectMultipleElementsAction;
 
 export const useLogoState = (initialState = INITIAL_STATE) => {
   const [state, setState] = useState<LogoState>(initialState);
 
   // Save current state to history and apply changes
-  const saveState = useCallback((newState: Partial<LogoState>) => {
+  const saveState = useCallback((newState: Partial<LogoState> | ((prevState: LogoState) => Partial<LogoState>)) => {
+    // Check if newState is a function or an object
+    const update = typeof newState === 'function' ? newState(state) : newState;
+    
     setState(prevState => {
       // Create a copy of the current state for history
       const historyCopy = {
         ...prevState,
         history: {
+          // Only add to history if it's not identical to the last past state
           past: [...prevState.history.past, { ...prevState, history: { past: [], future: [] } }],
           future: [],
         },
       };
       
       // Apply the new state changes
-      return { ...historyCopy, ...newState };
+      return { ...historyCopy, ...update };
     });
-  }, []);
+  }, [state]); // Add state dependency if newState is a function
 
   // Add a new element
   const addElement = useCallback((element: LogoElement) => {
@@ -66,13 +76,25 @@ export const useLogoState = (initialState = INITIAL_STATE) => {
     });
   }, [state.elements, saveState]);
 
-  // Remove an element
+  // Remove ONE element
   const removeElement = useCallback((elementId: string) => {
-    saveState({
-      elements: state.elements.filter(element => element.id !== elementId),
-      selectedElementId: state.selectedElementId === elementId ? null : state.selectedElementId,
-    });
-  }, [state.elements, state.selectedElementId, saveState]);
+    saveState(prevState => ({
+      elements: prevState.elements.filter(element => element.id !== elementId),
+      selectedElementId: prevState.selectedElementId === elementId ? null : prevState.selectedElementId,
+      // Reset selection flags if the removed element was the only one selected
+      ...(prevState.selectedElementId === elementId && prevState.elements.filter(el => el.selected).length === 1 
+          ? { elements: prevState.elements.filter(element => element.id !== elementId).map(el => ({...el, selected: false})) }
+          : {})
+    }));
+  }, [saveState]);
+
+  // Remove ALL currently selected elements
+  const removeSelectedElements = useCallback(() => {
+    saveState(prevState => ({
+      elements: prevState.elements.filter(el => !el.selected),
+      selectedElementId: null, // Clear selection
+    }));
+  }, [saveState]);
 
   // Set the selected element
   const setSelectedElement = useCallback((elementId: string | null) => {
@@ -82,12 +104,11 @@ export const useLogoState = (initialState = INITIAL_STATE) => {
       selected: element.id === elementId,
     }));
 
-    setState(prevState => ({
-      ...prevState,
+    saveState({
       elements: updatedElements,
       selectedElementId: elementId,
-    }));
-  }, [state.elements]);
+    });
+  }, [state.elements, saveState]);
 
   // Select element at a position
   const selectElementAtPosition = useCallback((position: Position) => {
@@ -125,13 +146,13 @@ export const useLogoState = (initialState = INITIAL_STATE) => {
         history: {
           past: newPast,
           future: [
-            { ...prevState, history: { past: [], future: [] } },
+            { ...prevState, history: { past: [], future: [] } }, // Add current state to future
             ...prevState.history.future,
           ],
         },
       };
     });
-  }, []);
+  }, [setState]); // Dependency is setState
 
   // Redo to a future state
   const redo = useCallback(() => {
@@ -144,73 +165,77 @@ export const useLogoState = (initialState = INITIAL_STATE) => {
       return {
         ...next,
         history: {
-          past: [...prevState.history.past, { ...prevState, history: { past: [], future: [] } }],
+          past: [...prevState.history.past, { ...prevState, history: { past: [], future: [] } }], // Add current state to past
           future: newFuture,
         },
       };
     });
-  }, []);
+  }, [setState]); // Dependency is setState
 
   // Z-index manipulation functions
   const bringForward = useCallback(() => {
-    if (!state.selectedElementId) return;
-    
-    const elements = [...state.elements];
-    const selectedIndex = elements.findIndex(el => el.id === state.selectedElementId);
-    
-    if (selectedIndex < elements.length - 1) {
-      // Swap with the element above
-      [elements[selectedIndex], elements[selectedIndex + 1]] = 
-      [elements[selectedIndex + 1], elements[selectedIndex]];
-      
-      saveState({ elements });
-    }
-  }, [state.elements, state.selectedElementId, saveState]);
+    saveState(prevState => {
+      let items = [...prevState.elements];
+      const selectedIndices = prevState.elements
+        .map((el, index) => el.selected ? index : -1)
+        .filter(index => index !== -1)
+        .sort((a, b) => a - b); // Process from bottom up
+
+      if (selectedIndices.length === 0) return prevState;
+
+      // Move block forward if possible
+      for (let i = selectedIndices.length - 1; i >= 0; i--) {
+         const currentIndex = selectedIndices[i];
+         // Find the actual current index after potential previous swaps
+         const actualIndex = items.findIndex(el => el.id === prevState.elements[currentIndex].id);
+         if (actualIndex < items.length - 1 && !items[actualIndex + 1].selected) {
+            // Swap with the unselected item above
+            [items[actualIndex], items[actualIndex + 1]] = [items[actualIndex + 1], items[actualIndex]];
+         }
+      }
+      return { ...prevState, elements: items };
+    });
+  }, [saveState]);
 
   const sendBackward = useCallback(() => {
-    if (!state.selectedElementId) return;
-    
-    const elements = [...state.elements];
-    const selectedIndex = elements.findIndex(el => el.id === state.selectedElementId);
-    
-    if (selectedIndex > 0) {
-      // Swap with the element below
-      [elements[selectedIndex], elements[selectedIndex - 1]] = 
-      [elements[selectedIndex - 1], elements[selectedIndex]];
-      
-      saveState({ elements });
-    }
-  }, [state.elements, state.selectedElementId, saveState]);
+     saveState(prevState => {
+       let items = [...prevState.elements];
+       const selectedIndices = prevState.elements
+         .map((el, index) => el.selected ? index : -1)
+         .filter(index => index !== -1)
+         .sort((a, b) => a - b); // Process from top down
+
+       if (selectedIndices.length === 0) return prevState;
+
+       for (let i = 0; i < selectedIndices.length; i++) {
+          const currentIndex = selectedIndices[i];
+          const actualIndex = items.findIndex(el => el.id === prevState.elements[currentIndex].id);
+          if (actualIndex > 0 && !items[actualIndex - 1].selected) {
+             // Swap with the unselected item below
+             [items[actualIndex], items[actualIndex - 1]] = [items[actualIndex - 1], items[actualIndex]];
+          }
+       }
+       return { ...prevState, elements: items };
+     });
+  }, [saveState]);
 
   const bringToFront = useCallback(() => {
-    if (!state.selectedElementId) return;
-    
-    const elements = [...state.elements];
-    const selectedIndex = elements.findIndex(el => el.id === state.selectedElementId);
-    
-    if (selectedIndex < elements.length - 1) {
-      // Remove the element and add it to the end
-      const [element] = elements.splice(selectedIndex, 1);
-      elements.push(element);
-      
-      saveState({ elements });
-    }
-  }, [state.elements, state.selectedElementId, saveState]);
+    saveState(prevState => {
+      const selectedItems = prevState.elements.filter(el => el.selected);
+      const otherItems = prevState.elements.filter(el => !el.selected);
+      if (selectedItems.length === 0) return prevState;
+      return { ...prevState, elements: [...otherItems, ...selectedItems] };
+    });
+  }, [saveState]);
 
   const sendToBack = useCallback(() => {
-    if (!state.selectedElementId) return;
-    
-    const elements = [...state.elements];
-    const selectedIndex = elements.findIndex(el => el.id === state.selectedElementId);
-    
-    if (selectedIndex > 0) {
-      // Remove the element and add it to the beginning
-      const [element] = elements.splice(selectedIndex, 1);
-      elements.unshift(element);
-      
-      saveState({ elements });
-    }
-  }, [state.elements, state.selectedElementId, saveState]);
+    saveState(prevState => {
+      const selectedItems = prevState.elements.filter(el => el.selected);
+      const otherItems = prevState.elements.filter(el => !el.selected);
+      if (selectedItems.length === 0) return prevState;
+      return { ...prevState, elements: [...selectedItems, ...otherItems] };
+    });
+  }, [saveState]);
 
   // Check if undo/redo are available
   const canUndo = state.history.past.length > 0;
@@ -231,11 +256,75 @@ export const useLogoState = (initialState = INITIAL_STATE) => {
     });
   }, [state.elements, saveState]);
 
+  // Dispatcher for selecting multiple elements
+  const selectMultipleElements = useCallback((elementIds: string[]) => {
+    const selectedIdsSet = new Set(elementIds);
+    
+    // First update the state with a proper setState call to ensure it's available immediately
+    setState(prevState => {
+      const updatedElements = prevState.elements.map(el => ({
+        ...el,
+        selected: selectedIdsSet.has(el.id)
+      }));
+      
+      return {
+        ...prevState,
+        elements: updatedElements,
+        selectedElementId: elementIds.length === 1 ? elementIds[0] : null
+      };
+    });
+    
+    // Then add this to history via saveState
+    saveState(prevState => ({
+      // No need to update elements again since we did that in setState already
+      selectedElementId: elementIds.length === 1 ? elementIds[0] : null
+    }));
+  }, [setState, saveState]);
+
+  // Drag multiple selected elements
+  const dragSelectedElements = useCallback((dx: number, dy: number) => {
+    // Get a fresh snapshot of elements to ensure we're working with up-to-date state
+    setState(prevState => {
+      // Find the selected elements directly from the current state
+      const selectedElements = prevState.elements.filter(el => el.selected);
+      
+      if (selectedElements.length === 0) {
+        return prevState; // No changes
+      }
+      
+      // Update positions for all selected elements
+      const updatedElements = prevState.elements.map(el => {
+        if (!el.selected) return el;
+        
+        const newPosition = { x: el.position.x + dx, y: el.position.y + dy };
+        let newPoints = el.points;
+        
+        if (el.type === 'line' && el.points) {
+          newPoints = el.points.map(p => ({ x: p.x + dx, y: p.y + dy }));
+        }
+
+        return { 
+          ...el, 
+          position: newPosition, 
+          // Only update points if they changed
+          ...(newPoints !== el.points && { points: newPoints }) 
+        };
+      });
+      
+      // Return new state WITHOUT changing history during drag operations
+      return {
+        ...prevState,
+        elements: updatedElements
+      };
+    });
+  }, [setState]);
+
   return {
     state,
     addElement,
     updateElement,
     removeElement,
+    removeSelectedElements,
     setSelectedElement,
     selectElementAtPosition,
     updateCanvasSettings,
@@ -248,5 +337,7 @@ export const useLogoState = (initialState = INITIAL_STATE) => {
     canUndo,
     canRedo,
     updateElementPoint,
+    selectMultipleElements,
+    dragSelectedElements,
   };
 }; 
