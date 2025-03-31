@@ -284,6 +284,33 @@ export const createArrow = (start: Position, end: Position): LogoElement => {
   };
 };
 
+// Create a pentagon element
+export const createPentagon = (position: Position, radius: number = 50): LogoElement => {
+  const points = Array.from({ length: 5 }).map((_, i) => {
+    const angle = (i * 2 * Math.PI) / 5 - Math.PI / 2; // Start from top
+    return {
+      x: Math.cos(angle) * radius,
+      y: Math.sin(angle) * radius
+    };
+  });
+
+  return {
+    id: generateId(),
+    type: 'pentagon',
+    position,
+    points,
+    radius,
+    styles: {
+      fill: '#9b59b6',
+      stroke: '#8e44ad',
+      strokeWidth: 2,
+      opacity: 1,
+    },
+    rotation: 0,
+    selected: false,
+  };
+};
+
 // Calculate element bounds (useful for selection and transformations)
 export const getElementBounds = (element: LogoElement): { top: number; left: number; right: number; bottom: number } => {
   const { position, type } = element;
@@ -548,7 +575,8 @@ export const isPointInElement = (element: LogoElement, point: Position): boolean
     
     case 'polygon':
     case 'star':
-    case 'hexagon': { // Polygons, stars, and hexagons use the same logic
+    case 'hexagon':
+    case 'pentagon': { // Polygons, stars, hexagons, and pentagons use the same logic
       let vertices: Position[] = [];
       if (type === 'polygon') {
         const sides = element.sides || 3;
@@ -573,6 +601,15 @@ export const isPointInElement = (element: LogoElement, point: Position): boolean
              x: radius * Math.cos(angle),
              y: radius * Math.sin(angle)
            });
+        }
+      } else if (type === 'pentagon') { // Pentagon
+        const pentagonRadius = element.radius || 0;
+        for (let i = 0; i < 5; i++) {
+          const angle = (i * 2 * Math.PI) / 5 - Math.PI / 2;
+          vertices.push({
+            x: pentagonRadius * Math.cos(angle),
+            y: pentagonRadius * Math.sin(angle)
+          });
         }
       } else { // Hexagon
         const hexRadius = element.radius || 0;

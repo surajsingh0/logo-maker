@@ -71,7 +71,7 @@ const ElementProperties: React.FC<ElementPropertiesProps> = ({
   };
 
   const handleRadiusChange = (value: string) => {
-    if (element.type !== 'circle') return;
+    if (!['circle', 'polygon', 'hexagon', 'pentagon'].includes(element.type)) return;
 
     const numValue = parseFloat(value);
     if (isNaN(numValue) || numValue <= 0) return;
@@ -301,6 +301,23 @@ const ElementProperties: React.FC<ElementPropertiesProps> = ({
               max="50"
               value={element.arrowHeadSize || 15}
               onChange={(e) => handleChange('arrowHeadSize', parseFloat(e.target.value))}
+            />
+          </div>
+        </div>
+      );
+      break;
+
+    case 'pentagon':
+      specificControls = (
+        <div className="property-group">
+          <h4>Pentagon Properties</h4>
+          <div className="property-row">
+            <label>Radius:</label>
+            <input
+              type="number"
+              min="1"
+              value={element.radius || 0}
+              onChange={(e) => handleRadiusChange(e.target.value)}
             />
           </div>
         </div>

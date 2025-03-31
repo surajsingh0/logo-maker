@@ -172,6 +172,28 @@ const SVGElement: React.FC<SVGElementProps> = ({ element, onResizeStart, onEndpo
           />
         );
       }
+      case 'pentagon': {
+        const pentRadius = element.radius || 0;
+        if (pentRadius === 0) return null;
+        const pentPoints: string[] = [];
+        for (let i = 0; i < 5; i++) {
+          const angle = (i / 5) * 2 * Math.PI - Math.PI / 2;
+          const px = elementPositionProps.x + pentRadius * Math.cos(angle);
+          const py = elementPositionProps.y + pentRadius * Math.sin(angle);
+          pentPoints.push(`${px},${py}`);
+        }
+        const pointsStr = pentPoints.join(' ');
+        return (
+          <polygon
+            ref={elementRef as React.RefObject<SVGPolygonElement>}
+            points={pointsStr}
+            fill={styles.fill}
+            stroke={styles.stroke}
+            strokeWidth={styles.strokeWidth}
+            opacity={styles.opacity}
+          />
+        );
+      }
       default:
         return null;
     }
