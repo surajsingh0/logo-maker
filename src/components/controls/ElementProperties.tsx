@@ -20,18 +20,7 @@ const ElementProperties: React.FC<ElementPropertiesProps> = ({
     setElement(selectedElement);
   }, [selectedElement]);
 
-  if (!element) {
-    return (
-      <div className="element-properties">
-        <div className="no-selection">
-          <p>No element selected</p>
-          <p>Click on an element to edit its properties</p>
-        </div>
-      </div>
-    );
-  }
-
-  const handleChange = (field: string, value: string | number | object) => {
+  const handleChange = (field: string, value: string | number | boolean | object) => {
     const updatedElement = { ...element } as any;
 
     if (field.includes('.')) {
@@ -47,6 +36,60 @@ const ElementProperties: React.FC<ElementPropertiesProps> = ({
     setElement(updatedElement);
     onUpdateElement(updatedElement);
   };
+
+  if (!element) {
+    return (
+      <div className="element-properties">
+        <div className="no-selection">
+          <p>No element selected</p>
+          <p>Click on an element to edit its properties</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show locked message if element is locked
+  if (element.locked) {
+    return (
+      <div className="element-properties">
+        <h3>Element Properties</h3>
+        <div className="property-group locked-element-group">
+          <div className="locked-element-header">
+            <i className="icon">🔒</i>
+            <h4>Element is Locked</h4>
+          </div>
+          <p className="locked-element-message">This element is currently locked. Unlock it to edit its properties.</p>
+          <div className="property-row">
+            <button 
+              className="unlock-button"
+              onClick={() => handleChange('locked', false)}
+            >
+              <i className="icon">🔓</i>
+              Unlock Element
+            </button>
+          </div>
+          <div className="locked-properties-preview">
+            <div className="locked-property">
+              <span>Position:</span> x: {element.position.x}, y: {element.position.y}
+            </div>
+            {element.dimensions && (
+              <div className="locked-property">
+                <span>Size:</span> {element.dimensions.width} × {element.dimensions.height}
+              </div>
+            )}
+            {element.radius && (
+              <div className="locked-property">
+                <span>Radius:</span> {element.radius}
+              </div>
+            )}
+            <div className="locked-property">
+              <span>Rotation:</span> {element.rotation}°
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handlePositionChange = (axis: 'x' | 'y', value: string) => {
     const numValue = parseFloat(value);
@@ -109,6 +152,22 @@ const ElementProperties: React.FC<ElementPropertiesProps> = ({
             type="number"
             value={element.position.y}
             onChange={(e) => handlePositionChange('y', e.target.value)}
+          />
+        </div>
+        <div className="property-row">
+          <label>Rotation:</label>
+          <input
+            type="number"
+            value={element.rotation}
+            onChange={(e) => handleChange('rotation', parseFloat(e.target.value) || 0)}
+          />
+        </div>
+        <div className="property-row">
+          <label>Lock:</label>
+          <input
+            type="checkbox"
+            checked={element.locked || false}
+            onChange={(e) => handleChange('locked', e.target.checked)}
           />
         </div>
       </div>

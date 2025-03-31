@@ -19,17 +19,19 @@ const SVGElement: React.FC<SVGElementProps> = ({ element, onResizeStart, onEndpo
   const elementPositionProps = { x: 0, y: 0 };
   
   const selectedStyle = element.selected 
-    ? { stroke: '#2196f3', strokeWidth: strokeWidth + 1, strokeDasharray: '4 2' } 
+    ? element.locked 
+      ? { stroke: '#e74c3c', strokeWidth: strokeWidth + 1, strokeDasharray: '4 2' } // Red outline for locked
+      : { stroke: '#2196f3', strokeWidth: strokeWidth + 1, strokeDasharray: '4 2' }  // Blue outline for selected
     : {};
 
   useLayoutEffect(() => {
-    if (elementRef.current && element.selected) {
+    if (elementRef.current && element.selected && !element.locked) {
       const bbox = elementRef.current.getBBox();
       setLocalBbox(bbox);
     } else {
       setLocalBbox(null);
     }
-  }, [element, element.selected, position.x, position.y, rotation, element.dimensions, element.radius, element.rx, element.ry, element.fontSize, element.content, element.outerRadius, element.innerRadius]);
+  }, [element, element.selected, element.locked, position.x, position.y, rotation, element.dimensions, element.radius, element.rx, element.ry, element.fontSize, element.content, element.outerRadius, element.innerRadius]);
 
   const renderElement = () => {
     switch (type) {
@@ -258,227 +260,45 @@ const SVGElement: React.FC<SVGElementProps> = ({ element, onResizeStart, onEndpo
 
   const renderedElement = renderElement();
 
-  if (type === 'line') {
-    const points = element.points || [];
-    if (points.length < 2) return null;
-    const [start, end] = points;
-    const lineTransform = `rotate(${rotation} ${position.x} ${position.y})`;
-    const handleRadius = 6;
-
-    return (
-      <g>
-        <line
-          ref={elementRef as React.RefObject<SVGLineElement>}
-          x1={start.x}
-          y1={start.y}
-          x2={end.x}
-          y2={end.y}
-          stroke={stroke}
-          strokeWidth={element.selected ? strokeWidth + 1 : strokeWidth}
-          strokeDasharray={element.selected ? '4 2' : undefined}
-          opacity={opacity}
-          transform={lineTransform}
-        />
-        {element.selected && onEndpointDown && (
-          <>
-            <circle
-              className="resize-handle nw corner"
-              cx={start.x}
-              cy={start.y}
-              r={handleRadius}
-              fill="white"
-              stroke="#2196f3"
-              strokeWidth={1.5}
-              vectorEffect="non-scaling-stroke"
-              transform={lineTransform}
-              onMouseDown={(e) => onEndpointDown(element.id, 0, e)}
-            />
-            <circle
-              className="resize-handle se corner"
-              cx={end.x}
-              cy={end.y}
-              r={handleRadius}
-              fill="white"
-              stroke="#2196f3"
-              strokeWidth={1.5}
-              vectorEffect="non-scaling-stroke"
-              transform={lineTransform}
-              onMouseDown={(e) => onEndpointDown(element.id, 1, e)}
-            />
-          </>
-        )}
-      </g>
-    );
-  }
-
-  if (type === 'arrow') {
-    const points = element.points || [];
-    if (points.length < 2) return null;
-    const [start, end] = points;
-    const arrowHeadSize = element.arrowHeadSize || 15;
-
-    // Calculate arrow head points
-    const dx = end.x - start.x;
-    const dy = end.y - start.y;
-    const angle = Math.atan2(dy, dx);
-
-    const arrowHead1 = {
-      x: end.x - arrowHeadSize * Math.cos(angle - Math.PI / 6),
-      y: end.y - arrowHeadSize * Math.sin(angle - Math.PI / 6)
-    };
-    const arrowHead2 = {
-      x: end.x - arrowHeadSize * Math.cos(angle + Math.PI / 6),
-      y: end.y - arrowHeadSize * Math.sin(angle + Math.PI / 6)
-    };
-
-    const lineTransform = `rotate(${rotation} ${position.x} ${position.y})`;
-    const handleRadius = 6;
-
-    return (
-      <g>
-        <path
-          ref={elementRef as React.RefObject<SVGPathElement>}
-          d={`M ${start.x} ${start.y} L ${end.x} ${end.y} M ${arrowHead1.x} ${arrowHead1.y} L ${end.x} ${end.y} L ${arrowHead2.x} ${arrowHead2.y}`}
-          fill="none"
-          stroke={stroke}
-          strokeWidth={element.selected ? strokeWidth + 1 : strokeWidth}
-          strokeDasharray={element.selected ? '4 2' : undefined}
-          opacity={opacity}
-          transform={lineTransform}
-        />
-        {element.selected && onEndpointDown && (
-          <>
-            <circle
-              className="resize-handle nw corner"
-              cx={start.x}
-              cy={start.y}
-              r={handleRadius}
-              fill="white"
-              stroke="#2196f3"
-              strokeWidth={1.5}
-              vectorEffect="non-scaling-stroke"
-              transform={lineTransform}
-              onMouseDown={(e) => onEndpointDown(element.id, 0, e)}
-            />
-            <circle
-              className="resize-handle se corner"
-              cx={end.x}
-              cy={end.y}
-              r={handleRadius}
-              fill="white"
-              stroke="#2196f3"
-              strokeWidth={1.5}
-              vectorEffect="non-scaling-stroke"
-              transform={lineTransform}
-              onMouseDown={(e) => onEndpointDown(element.id, 1, e)}
-            />
-          </>
-        )}
-      </g>
-    );
-  }
-
-  if (type === 'curvedLine') {
-    const points = element.points || [];
-    if (points.length < 3) return null;
-    const [start, control, end] = points;
-    const handleRadius = 6;
-
-    return (
-      <g transform={groupTransform}>
-        {/* Guide lines when selected */}
-        {element.selected && (
-          <>
-            <line
-              x1={start.x}
-              y1={start.y}
-              x2={control.x}
-              y2={control.y}
-              stroke="#2196f3"
-              strokeWidth={1}
-              strokeDasharray="4 4"
-              opacity={0.5}
-            />
-            <line
-              x1={control.x}
-              y1={control.y}
-              x2={end.x}
-              y2={end.y}
-              stroke="#2196f3"
-              strokeWidth={1}
-              strokeDasharray="4 4"
-              opacity={0.5}
-            />
-          </>
-        )}
-
-        {/* The curve itself */}
-        <path
-          ref={elementRef as React.RefObject<SVGPathElement>}
-          d={`M ${start.x} ${start.y} Q ${control.x} ${control.y} ${end.x} ${end.y}`}
-          fill="none"
-          stroke={stroke}
-          strokeWidth={element.selected ? strokeWidth + 1 : strokeWidth}
-          strokeDasharray={element.selected ? '4 2' : undefined}
-          opacity={opacity}
-        />
-
-        {/* Control points when selected */}
-        {element.selected && onEndpointDown && (
-          <>
-            <circle
-              className="resize-handle nw corner"
-              cx={start.x}
-              cy={start.y}
-              r={handleRadius}
-              fill="white"
-              stroke="#2196f3"
-              strokeWidth={1.5}
-              vectorEffect="non-scaling-stroke"
-              onMouseDown={(e) => onEndpointDown(element.id, 0, e)}
-            />
-            <circle
-              className="resize-handle n"
-              cx={control.x}
-              cy={control.y}
-              r={5}
-              fill="white"
-              stroke="#2196f3"
-              strokeWidth={1.5}
-              vectorEffect="non-scaling-stroke"
-              onMouseDown={(e) => onEndpointDown(element.id, 1, e)}
-            />
-            <circle
-              className="resize-handle se corner"
-              cx={end.x}
-              cy={end.y}
-              r={handleRadius}
-              fill="white"
-              stroke="#2196f3"
-              strokeWidth={1.5}
-              vectorEffect="non-scaling-stroke"
-              onMouseDown={(e) => onEndpointDown(element.id, 2, e)}
-            />
-          </>
-        )}
-      </g>
-    );
-  }
-
   return (
-    <g>
+    <>
       <g transform={groupTransform}>
         {renderedElement}
       </g>
       {element.selected && onResizeStart && localBbox && 
-       !['curvedLine', 'line', 'arrow'].includes(type) && (
+       !['curvedLine', 'line', 'arrow'].includes(type) && !element.locked && (
         <ResizeHandles 
           bbox={localBbox}
           transform={groupTransform}
           onResizeStart={onResizeStart} 
         />
       )}
-    </g>
+      {/* Show locked indicator if element is locked and selected */}
+      {element.selected && element.locked && (
+        <g transform={groupTransform}>
+          <g className="locked-indicator">
+            <rect
+              x={-10}
+              y={-30}
+              width={20}
+              height={20}
+              fill="#e74c3c"
+              rx={4}
+            />
+            <text
+              x={0}
+              y={-16}
+              textAnchor="middle"
+              fill="white"
+              fontSize={12}
+              fontFamily="Arial"
+            >
+              🔒
+            </text>
+          </g>
+        </g>
+      )}
+    </>
   );
 };
 

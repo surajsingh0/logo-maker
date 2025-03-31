@@ -91,7 +91,7 @@ export const useLogoState = (initialState = INITIAL_STATE) => {
   // Remove ALL currently selected elements
   const removeSelectedElements = useCallback(() => {
     saveState(prevState => ({
-      elements: prevState.elements.filter(el => !el.selected),
+      elements: prevState.elements.filter(el => !el.selected || el.locked),
       selectedElementId: null, // Clear selection
     }));
   }, [saveState]);
@@ -319,10 +319,21 @@ export const useLogoState = (initialState = INITIAL_STATE) => {
     });
   }, [setState]);
 
+  // Update multiple elements at once
+  const updateMultipleElements = useCallback((updates: LogoElement[]) => {
+    saveState(prevState => ({
+      elements: prevState.elements.map(element => {
+        const update = updates.find(u => u.id === element.id);
+        return update || element;
+      })
+    }));
+  }, [saveState]);
+
   return {
     state,
     addElement,
     updateElement,
+    updateMultipleElements,
     removeElement,
     removeSelectedElements,
     setSelectedElement,

@@ -29,6 +29,7 @@ function App() {
     state: { elements, selectedElementId, canvasSettings },
     addElement,
     updateElement,
+    updateMultipleElements,
     removeElement,
     removeSelectedElements,
     setSelectedElement,
@@ -50,6 +51,9 @@ function App() {
   const selectedElements = elements.filter(el => el.selected);
   const hasMultiSelection = selectedElements.length > 1;
   const hasSelection = selectedElements.length > 0;
+  const isSelectedElementLocked = selectedElements.find(el => el.id === selectedElementId)?.locked ?? false;
+  const areAllSelectedElementsLocked = selectedElements.length > 0 && selectedElements.every(el => el.locked);
+  const areSomeSelectedElementsLocked = selectedElements.some(el => el.locked);
 
   const selectedElement = elements.find(el => el.id === selectedElementId) || null;
 
@@ -179,7 +183,7 @@ function App() {
 
   const handleElementDrag = (elementId: string, updates: Partial<Pick<LogoElement, 'position' | 'points'>>) => {
     const element = elements.find(el => el.id === elementId);
-    if (element) {
+    if (element && !element.locked) {
       updateElement({
         ...element,
         ...updates
@@ -189,7 +193,7 @@ function App() {
 
   const handleElementResize = (elementId: string, updates: Partial<LogoElement>) => {
     const element = elements.find(el => el.id === elementId);
-    if (element) {
+    if (element && !element.locked) {
       updateElement({
         ...element,
         ...updates
@@ -198,7 +202,10 @@ function App() {
   };
 
   const handleElementPointUpdate = (elementId: string, pointIndex: number, newPosition: Position) => {
-    updateElementPoint(elementId, pointIndex, newPosition);
+    const element = elements.find(el => el.id === elementId);
+    if (element && !element.locked) {
+      updateElementPoint(elementId, pointIndex, newPosition);
+    }
   };
 
   const handleExportSVG = () => {
@@ -221,15 +228,18 @@ function App() {
 
   const handleDelete = () => {
     if (hasMultiSelection) {
-       removeSelectedElements();
+      removeSelectedElements();
     } else if (selectedElementId) {
-       removeElement(selectedElementId);
+      const element = elements.find(el => el.id === selectedElementId);
+      if (element && !element.locked) {
+        removeElement(selectedElementId);
+      }
     }
   };
 
   const handleDragMultipleElements = (dx: number, dy: number) => {
     const currentSelectedElements = elements.filter(el => el.selected);
-    if (currentSelectedElements.length === 0) {
+    if (currentSelectedElements.length === 0 || currentSelectedElements.some(el => el.locked)) {
       return;
     }
     dragSelectedElements(dx, dy);
@@ -237,6 +247,22 @@ function App() {
 
   const handleZoomChange = (newZoomLevel: number) => {
     updateCanvasSettings({ zoomLevel: newZoomLevel });
+  };
+
+  const handleToggleLock = () => {
+    if (hasMultiSelection) {
+      const shouldLock = !areAllSelectedElementsLocked;
+      const updatedElements = selectedElements.map(element => ({
+        ...element,
+        locked: shouldLock
+      }));
+      updateMultipleElements(updatedElements);
+    } else if (selectedElement) {
+      updateElement({
+        ...selectedElement,
+        locked: !selectedElement.locked
+      });
+    }
   };
 
   return (
@@ -265,10 +291,14 @@ function App() {
         onSendBackward={sendBackward}
         onBringToFront={bringToFront}
         onSendToBack={sendToBack}
+        onToggleLock={handleToggleLock}
         canUndo={canUndo}
         canRedo={canRedo}
         hasSelection={hasSelection}
         hasMultiSelection={hasMultiSelection}
+        isSelectedElementLocked={isSelectedElementLocked}
+        areAllSelectedElementsLocked={areAllSelectedElementsLocked}
+        areSomeSelectedElementsLocked={areSomeSelectedElementsLocked}
       />
       
       <div className="main-content" ref={canvasRef}>

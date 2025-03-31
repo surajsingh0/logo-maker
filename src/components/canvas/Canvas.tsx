@@ -1,7 +1,8 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { LogoElement, Position, Dimensions } from '../../types';
 import SVGElement from './SVGElement';
 import Grid from './Grid';
+import { isPointInElement } from '../../utils/elementUtils';
 import './Canvas.css';
 
 interface CanvasProps {
@@ -99,7 +100,7 @@ const Canvas: React.FC<CanvasProps> = ({
 
   const handleResizeStart = (handle: string, event: React.MouseEvent) => {
     const element = elements.find(el => el.id === activeElementId);
-    if (!element || element.type === 'line' || element.type === 'arrow') return;
+    if (!element || element.type === 'line' || element.type === 'arrow' || element.locked) return;
 
     const initialCanvasMousePos = getCanvasCoordinates(event);
 
@@ -114,6 +115,9 @@ const Canvas: React.FC<CanvasProps> = ({
 
   const handleEndpointDown = (elementId: string, pointIndex: number, event: React.MouseEvent) => {
     event.stopPropagation(); // Prevent canvas interaction
+    const element = elements.find(el => el.id === elementId);
+    if (element?.locked) return;
+
     const initialMousePos = getCanvasCoordinates(event);
     setIsMovingEndpoint(true);
     setMovingPointInfo({ elementId, pointIndex, initialMousePos });
@@ -504,7 +508,16 @@ const Canvas: React.FC<CanvasProps> = ({
     const isClickOnSelectedElement = clickedElement?.selected ?? false;
     const selectedElementIds = elements.filter(el => el.selected).map(el => el.id);
 
+    // Don't allow dragging or resizing of locked elements
+    if (clickedElement?.locked) {
+      return;
+    }
+
     if (isClickOnSelectedElement && selectedElementsCount > 1 && !shiftKeyPressed) {
+        // Don't allow dragging if any selected element is locked
+        if (elements.some(el => el.selected && el.locked)) {
+          return;
+        }
         setIsDraggingMultiple(true);
         setDragStartPos(position);
         setActiveElementId(clickedElementId);
@@ -535,7 +548,7 @@ const Canvas: React.FC<CanvasProps> = ({
             if (!isClickOnSelectedElement || selectedElementsCount !== 1) {
               onSelectElement(clickedElementId); 
             }
-            setIsDragging(true); 
+            setIsDragging(!clickedElement.locked); 
             setDragStartPos(position);
             setActiveElementId(clickedElementId);
             setIsResizing(false); 
@@ -557,6 +570,21 @@ const Canvas: React.FC<CanvasProps> = ({
       setResizeStartState(null);
     }
   };
+
+  const selectElementAtPosition = useCallback((position: Position) => {
+    // Check elements in reverse order (top to bottom in z-index)
+    for (let i = elements.length - 1; i >= 0; i--) {
+      const element = elements[i];
+      if (isPointInElement(element, position) && !element.locked) {
+        setActiveElementId(element.id);
+        return element.id;
+      }
+    }
+    
+    // No element found at position
+    setActiveElementId(null);
+    return null;
+  }, [elements, setActiveElementId]);
 
   return (
     <>

@@ -41,6 +41,7 @@ export interface LogoElement {
   styles: ElementStyles;
   rotation: number;
   selected: boolean;
+  locked?: boolean;
 
   // Type-specific properties
   dimensions?: { width: number; height: number };

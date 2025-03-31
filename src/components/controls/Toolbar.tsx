@@ -25,10 +25,14 @@ interface ToolbarProps {
   onSendBackward: () => void;
   onBringToFront: () => void;
   onSendToBack: () => void;
+  onToggleLock: () => void;
   canUndo: boolean;
   canRedo: boolean;
   hasSelection: boolean;
   hasMultiSelection: boolean;
+  isSelectedElementLocked: boolean;
+  areAllSelectedElementsLocked: boolean;
+  areSomeSelectedElementsLocked: boolean;
 }
 
 const Toolbar: React.FC<ToolbarProps> = ({
@@ -55,10 +59,14 @@ const Toolbar: React.FC<ToolbarProps> = ({
   onSendBackward,
   onBringToFront,
   onSendToBack,
+  onToggleLock,
   canUndo,
   canRedo,
   hasSelection,
   hasMultiSelection,
+  isSelectedElementLocked,
+  areAllSelectedElementsLocked,
+  areSomeSelectedElementsLocked,
 }) => {
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({
     shapes: false,
@@ -232,7 +240,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
           <button 
             className="toolbar-button" 
             onClick={onBringToFront}
-            disabled={!hasSelection}
+            disabled={!hasSelection || areSomeSelectedElementsLocked}
             title="Bring to Front"
           >
             <i className="icon">⤒</i>
@@ -242,7 +250,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
           <button 
             className="toolbar-button" 
             onClick={onBringForward}
-            disabled={!hasSelection}
+            disabled={!hasSelection || areSomeSelectedElementsLocked}
             title="Bring Forward"
           >
             <i className="icon">↑</i>
@@ -252,7 +260,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
           <button 
             className="toolbar-button" 
             onClick={onSendBackward}
-            disabled={!hasSelection}
+            disabled={!hasSelection || areSomeSelectedElementsLocked}
             title="Send Backward"
           >
             <i className="icon">↓</i>
@@ -262,7 +270,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
           <button 
             className="toolbar-button" 
             onClick={onSendToBack}
-            disabled={!hasSelection}
+            disabled={!hasSelection || areSomeSelectedElementsLocked}
             title="Send to Back"
           >
             <i className="icon">⤓</i>
@@ -305,6 +313,44 @@ const Toolbar: React.FC<ToolbarProps> = ({
           >
             <i className="icon">🗑</i>
             <span>Delete</span>
+          </button>
+
+          <button 
+            className="toolbar-button" 
+            onClick={onToggleLock}
+            disabled={!hasSelection}
+            title={
+              hasMultiSelection 
+                ? areAllSelectedElementsLocked 
+                  ? "Unlock All Selected" 
+                  : areSomeSelectedElementsLocked 
+                    ? "Lock All Selected" 
+                    : "Lock Selected"
+                : isSelectedElementLocked 
+                  ? "Unlock" 
+                  : "Lock"
+            }
+          >
+            <i className="icon">
+              {hasMultiSelection 
+                ? areAllSelectedElementsLocked 
+                  ? '🔓' 
+                  : '🔒'
+                : isSelectedElementLocked 
+                  ? '🔓' 
+                  : '🔒'
+              }
+            </i>
+            <span>
+              {hasMultiSelection 
+                ? areAllSelectedElementsLocked 
+                  ? 'Unlock All' 
+                  : 'Lock All'
+                : isSelectedElementLocked 
+                  ? 'Unlock' 
+                  : 'Lock'
+              }
+            </span>
           </button>
         </div>
       </div>
