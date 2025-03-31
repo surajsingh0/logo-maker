@@ -253,6 +253,24 @@ export const generateSvgString = (state: LogoState): string => {
         break;
       }
 
+      case 'cloud': {
+        if (element.pathData) {
+          const { width = 0, height = 0 } = element.dimensions || {};
+          const centerX = element.position.x + width / 2;
+          const centerY = element.position.y + height / 2;
+
+          svgContent += `<path 
+            d="${element.pathData}" 
+            fill="${element.styles.fill}" 
+            stroke="${element.styles.stroke}" 
+            stroke-width="${element.styles.strokeWidth}" 
+            opacity="${element.styles.opacity}" 
+            transform="translate(${element.position.x} ${element.position.y}) rotate(${element.rotation} ${width/2} ${height/2})"
+          />`;
+        }
+        break;
+      }
+
       case 'ellipse':
         svgContent += `<ellipse 
           cx="${element.position.x}" 

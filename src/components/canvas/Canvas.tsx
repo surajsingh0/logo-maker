@@ -189,6 +189,57 @@ const Canvas: React.FC<CanvasProps> = ({
           update = { points: newPoints };
           break;
         }
+        case 'cloud': {
+          const { position: initialPosition, dimensions: initialDimensions } = initialElementState;
+          if (!initialDimensions) break;
+          let newX = initialPosition.x;
+          let newY = initialPosition.y;
+          let newWidth = initialDimensions.width;
+          let newHeight = initialDimensions.height;
+
+          if (resizeHandle.includes('e')) {
+            newWidth = Math.max(10, initialDimensions.width + dx);
+          } else if (resizeHandle.includes('w')) {
+            const calculatedWidth = Math.max(10, initialDimensions.width - dx);
+            newX = initialPosition.x + (initialDimensions.width - calculatedWidth);
+            newWidth = calculatedWidth;
+          }
+          if (resizeHandle.includes('s')) {
+            newHeight = Math.max(10, initialDimensions.height + dy);
+          } else if (resizeHandle.includes('n')) {
+            const calculatedHeight = Math.max(10, initialDimensions.height - dy);
+            newY = initialPosition.y + (initialDimensions.height - calculatedHeight);
+            newHeight = calculatedHeight;
+          }
+
+          // Scale the path data while preserving commands
+          const scaleX = newWidth / initialDimensions.width;
+          const scaleY = newHeight / initialDimensions.height;
+          
+          const pathCommands = initialElementState.pathData?.match(/[A-Z][^A-Z]*/g) || [];
+          const scaledCommands = pathCommands.map(cmd => {
+            const command = cmd[0];
+            const coords = cmd.slice(1).trim().split(/[\s,]+/).map(Number);
+            
+            // Scale coordinates based on command type
+            switch (command) {
+              case 'M': // Move to
+              case 'L': // Line to
+                return `${command}${coords[0] * scaleX} ${coords[1] * scaleY}`;
+              case 'C': // Cubic bezier
+                return `${command}${coords[0] * scaleX} ${coords[1] * scaleY} ${coords[2] * scaleX} ${coords[3] * scaleY} ${coords[4] * scaleX} ${coords[5] * scaleY}`;
+              default:
+                return cmd;
+            }
+          });
+
+          update = { 
+            position: { x: newX, y: newY }, 
+            dimensions: { width: newWidth, height: newHeight },
+            pathData: scaledCommands.join(' ')
+          };
+          break;
+        }
         case 'rectangle': { 
           const { position: initialPosition, dimensions: initialDimensions } = initialElementState;
           if (!initialDimensions) break;

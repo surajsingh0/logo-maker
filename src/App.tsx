@@ -17,7 +17,8 @@ import {
   createArrow,
   createPentagon,
   createOctagonStar,
-  createBlockArrow
+  createBlockArrow,
+  createCloud
 } from './utils/elementUtils';
 import { LogoElement, Position } from './types';
 import './App.css';
@@ -156,6 +157,14 @@ function App() {
     addElement(createBlockArrow(center));
   };
 
+  const handleAddCloud = () => {
+    const center = {
+      x: canvasSettings.width / 2 - 60,
+      y: canvasSettings.height / 2 - 40,
+    };
+    addElement(createCloud(center));
+  };
+
   const handleAddArrow = () => {
     const start = {
       x: canvasSettings.width / 2 - 50,
@@ -245,6 +254,7 @@ function App() {
         onAddPentagon={handleAddPentagon}
         onAddOctagonStar={handleAddOctagonStar}
         onAddBlockArrow={handleAddBlockArrow}
+        onAddCloud={handleAddCloud}
         onAddArrow={handleAddArrow}
         onUndo={undo}
         onRedo={redo}

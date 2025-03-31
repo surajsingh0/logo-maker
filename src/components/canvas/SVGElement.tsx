@@ -237,6 +237,20 @@ const SVGElement: React.FC<SVGElementProps> = ({ element, onResizeStart, onEndpo
           />
         );
       }
+      case 'cloud': {
+        if (!element.pathData) return null;
+        return (
+          <path
+            ref={elementRef as React.RefObject<SVGPathElement>}
+            d={element.pathData}
+            fill={fill}
+            stroke={stroke}
+            strokeWidth={strokeWidth}
+            opacity={opacity}
+            {...selectedStyle}
+          />
+        );
+      }
       default:
         return null;
     }

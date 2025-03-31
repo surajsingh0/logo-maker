@@ -30,7 +30,8 @@ export type ElementType =
   | 'arrow'
   | 'pentagon'
   | 'octagonStar'
-  | 'blockArrow';
+  | 'blockArrow'
+  | 'cloud';
 
 // Define the base structure for all logo elements
 export interface LogoElement {
@@ -55,6 +56,7 @@ export interface LogoElement {
   innerRadius?: number;
   numPoints?: number;
   arrowHeadSize?: number;
+  pathData?: string; // SVG path data for complex shapes
 }
 
 export interface CanvasSettings {

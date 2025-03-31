@@ -366,6 +366,40 @@ export const createBlockArrow = (position: Position): LogoElement => {
   };
 };
 
+// Create a cloud element
+export const createCloud = (position: Position): LogoElement => {
+  const width = 120;
+  const height = 80;
+
+  // Create a more detailed cloud path with multiple bulges
+  const pathData = [
+    'M', 35, 80,                           // Start from bottom left
+    'C', 20, 80, 10, 70, 10, 55,          // Left bulge
+    'C', 10, 40, 20, 30, 35, 30,          // Left top curve
+    'C', 40, 15, 55, 10, 70, 10,          // Top left bulge
+    'C', 85, 10, 100, 15, 105, 30,        // Top right bulge
+    'C', 120, 30, 130, 40, 130, 55,       // Right top curve
+    'C', 130, 70, 120, 80, 105, 80,       // Right bulge
+    'C', 90, 85, 50, 85, 35, 80,          // Bottom curve
+  ].join(' ');
+
+  return {
+    id: generateId(),
+    type: 'cloud',
+    position,
+    dimensions: { width: 140, height: 90 }, // Slightly larger to accommodate bulges
+    pathData,
+    styles: {
+      fill: '#ffffff',
+      stroke: '#cccccc',
+      strokeWidth: 2,
+      opacity: 1,
+    },
+    rotation: 0,
+    selected: false,
+  };
+};
+
 // Calculate element bounds (useful for selection and transformations)
 export const getElementBounds = (element: LogoElement): { top: number; left: number; right: number; bottom: number } => {
   const { position, type } = element;
@@ -429,6 +463,16 @@ export const getElementBounds = (element: LogoElement): { top: number; left: num
         bottom: position.y + (blockDimensions.height || 0),
       };
     
+    case 'cloud': {
+      const { width = 140, height = 90 } = element.dimensions || {};
+      return {
+        top: position.y,
+        left: position.x,
+        right: position.x + width,
+        bottom: position.y + height,
+      };
+    }
+    
     default:
       return { top: position.y, left: position.x, right: position.x, bottom: position.y };
   }
@@ -441,20 +485,17 @@ export const isPointInElement = (element: LogoElement, point: Position): boolean
   const cy = position.y;
 
   // Calculate the inverse rotation
-  const angleRad = -rotation * (Math.PI / 180); // Use negative angle for inverse
+  const angleRad = -rotation * (Math.PI / 180);
   const cos = Math.cos(angleRad);
   const sin = Math.sin(angleRad);
 
-  // Translate point relative to the rotation center (element.position)
+  // Translate point relative to the rotation center
   const dx = point.x - cx;
   const dy = point.y - cy;
 
   // Apply inverse rotation
   const rotatedX = dx * cos - dy * sin;
   const rotatedY = dx * sin + dy * cos;
-
-  // Now check if the 'rotated' point lies within the element's un-rotated boundaries,
-  // relative to the rotation center (which is now the origin for rotatedX, rotatedY)
 
   switch (type) {
     case 'rectangle': {
@@ -735,6 +776,12 @@ export const isPointInElement = (element: LogoElement, point: Position): boolean
         if (intersect) inside = !inside;
       }
       return inside;
+    }
+
+    case 'cloud': {
+      const { width = 140, height = 90 } = element.dimensions || {};
+      // Check if the rotated point is within the cloud's bounding box
+      return 0 <= rotatedX && rotatedX <= width && 0 <= rotatedY && rotatedY <= height;
     }
 
     default:

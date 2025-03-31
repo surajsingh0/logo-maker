@@ -211,6 +211,29 @@ export function calculateElementBoundingBox(element: LogoElement): BoundingBox |
       return { minX, minY, maxX, maxY };
     }
 
+    case 'cloud': {
+      const { width = 140, height = 90 } = element.dimensions || {};
+      const { x, y } = element.position;
+      const center = { x: x + width / 2, y: y + height / 2 };
+
+      // Create corners for the cloud's bounding box
+      const corners: Position[] = [
+        { x: x, y: y },
+        { x: x + width, y: y },
+        { x: x + width, y: y + height },
+        { x: x, y: y + height },
+      ];
+
+      // Rotate corners if needed
+      const rotatedCorners = corners.map(p => rotatePoint(p, center, element.rotation));
+
+      const minX = Math.min(...rotatedCorners.map(p => p.x)) - halfStroke;
+      const minY = Math.min(...rotatedCorners.map(p => p.y)) - halfStroke;
+      const maxX = Math.max(...rotatedCorners.map(p => p.x)) + halfStroke;
+      const maxY = Math.max(...rotatedCorners.map(p => p.y)) + halfStroke;
+      return { minX, minY, maxX, maxY };
+    }
+
     case 'text':{
       // Approximation: Use position and estimated size based on font size.
       // Accurate text bounding box requires rendering or complex font metrics.
