@@ -17,7 +17,7 @@
   padding: var(--spacing-md);
 }
 
-.toolbar-section h3 {
+.section-header {
   font-size: 13px;
   color: var(--text-secondary);
   font-weight: 600;
@@ -25,9 +25,19 @@
   padding-bottom: var(--spacing-sm);
   border-bottom: 2px solid var(--border-light);
   position: relative;
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: color var(--transition-fast);
 }
 
-.toolbar-section h3::after {
+.section-header:hover {
+  color: var(--primary-color);
+}
+
+.section-header::after {
   content: '';
   position: absolute;
   bottom: -2px;
@@ -38,10 +48,28 @@
   border-radius: 1px;
 }
 
+.collapse-icon {
+  font-size: 14px;
+  transition: transform var(--transition-fast);
+}
+
 .toolbar-buttons {
   display: flex;
   flex-wrap: wrap;
   gap: var(--spacing-sm);
+  max-height: 500px;
+  opacity: 1;
+  overflow: hidden;
+  transition: all var(--transition-fast);
+}
+
+.toolbar-buttons.collapsed {
+  max-height: 0;
+  opacity: 0;
+  margin-top: 0;
+  margin-bottom: 0;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 .toolbar-button {
@@ -132,4 +160,4 @@
     width: auto;
     min-width: 120px;
   }
-} 
+}

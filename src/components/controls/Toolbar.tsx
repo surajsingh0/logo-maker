@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import './Toolbar.css';
 
 interface ToolbarProps {
@@ -52,11 +52,29 @@ const Toolbar: React.FC<ToolbarProps> = ({
   hasSelection,
   hasMultiSelection,
 }) => {
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({
+    shapes: false,
+    text: false,
+    arrange: false,
+    actions: false,
+    export: false
+  });
+
+  const toggleSection = (section: string) => {
+    setCollapsedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
+
   return (
     <div className="toolbar">
       <div className="toolbar-section">
-        <h3>Shapes</h3>
-        <div className="toolbar-buttons">
+        <h3 onClick={() => toggleSection('shapes')} className="section-header">
+          Shapes
+          <span className="collapse-icon">{collapsedSections.shapes ? '▸' : '▾'}</span>
+        </h3>
+        <div className={`toolbar-buttons ${collapsedSections.shapes ? 'collapsed' : ''}`}>
           <button 
             className="toolbar-button" 
             onClick={onAddRectangle}
@@ -145,8 +163,11 @@ const Toolbar: React.FC<ToolbarProps> = ({
       </div>
 
       <div className="toolbar-section">
-        <h3>Text</h3>
-        <div className="toolbar-buttons">
+        <h3 onClick={() => toggleSection('text')} className="section-header">
+          Text
+          <span className="collapse-icon">{collapsedSections.text ? '▸' : '▾'}</span>
+        </h3>
+        <div className={`toolbar-buttons ${collapsedSections.text ? 'collapsed' : ''}`}>
           <button 
             className="toolbar-button" 
             onClick={onAddText}
@@ -159,8 +180,11 @@ const Toolbar: React.FC<ToolbarProps> = ({
       </div>
 
       <div className="toolbar-section">
-        <h3>Arrange</h3>
-        <div className="toolbar-buttons">
+        <h3 onClick={() => toggleSection('arrange')} className="section-header">
+          Arrange
+          <span className="collapse-icon">{collapsedSections.arrange ? '▸' : '▾'}</span>
+        </h3>
+        <div className={`toolbar-buttons ${collapsedSections.arrange ? 'collapsed' : ''}`}>
           <button 
             className="toolbar-button" 
             onClick={onBringToFront}
@@ -202,27 +226,30 @@ const Toolbar: React.FC<ToolbarProps> = ({
           </button>
         </div>
       </div>
-      
+
       <div className="toolbar-section">
-        <h3>Edit</h3>
-        <div className="toolbar-buttons">
+        <h3 onClick={() => toggleSection('actions')} className="section-header">
+          Actions
+          <span className="collapse-icon">{collapsedSections.actions ? '▸' : '▾'}</span>
+        </h3>
+        <div className={`toolbar-buttons ${collapsedSections.actions ? 'collapsed' : ''}`}>
           <button 
             className="toolbar-button" 
             onClick={onUndo}
             disabled={!canUndo}
             title="Undo"
           >
-            <i className="icon">↩</i>
+            <i className="icon">↶</i>
             <span>Undo</span>
           </button>
-          
+
           <button 
             className="toolbar-button" 
             onClick={onRedo}
             disabled={!canRedo}
             title="Redo"
           >
-            <i className="icon">↪</i>
+            <i className="icon">↷</i>
             <span>Redo</span>
           </button>
 
@@ -230,32 +257,35 @@ const Toolbar: React.FC<ToolbarProps> = ({
             className="toolbar-button" 
             onClick={onDelete}
             disabled={!hasSelection}
-            title="Delete Selected"
+            title="Delete"
           >
-            <i className="icon">✕</i>
+            <i className="icon">🗑</i>
             <span>Delete</span>
           </button>
         </div>
       </div>
-      
+
       <div className="toolbar-section">
-        <h3>Export</h3>
-        <div className="toolbar-buttons">
+        <h3 onClick={() => toggleSection('export')} className="section-header">
+          Export
+          <span className="collapse-icon">{collapsedSections.export ? '▸' : '▾'}</span>
+        </h3>
+        <div className={`toolbar-buttons ${collapsedSections.export ? 'collapsed' : ''}`}>
           <button 
             className="toolbar-button export-button" 
             onClick={onExportSVG}
             title="Export as SVG"
           >
-            <i className="icon">💾</i>
+            <i className="icon">↓</i>
             <span>Export SVG</span>
           </button>
-          
+
           <button 
             className="toolbar-button export-button" 
             onClick={onExportPNG}
             title="Export as PNG"
           >
-            <i className="icon">🖼️</i>
+            <i className="icon">↓</i>
             <span>Export PNG</span>
           </button>
         </div>
@@ -264,4 +294,4 @@ const Toolbar: React.FC<ToolbarProps> = ({
   );
 };
 
-export default Toolbar; 
+export default Toolbar;
