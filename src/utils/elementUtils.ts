@@ -311,6 +311,24 @@ export const createPentagon = (position: Position, radius: number = 50): LogoEle
   };
 };
 
+// Create a new octagon star element
+export const createOctagonStar = (position: Position, radius: number = 50): LogoElement => {
+  return {
+    id: generateId(),
+    type: 'octagonStar',
+    position,
+    radius,
+    rotation: 0,
+    styles: {
+      fill: '#ffffff',
+      stroke: '#000000',
+      strokeWidth: 2,
+      opacity: 1,
+    },
+    selected: false,
+  };
+};
+
 // Calculate element bounds (useful for selection and transformations)
 export const getElementBounds = (element: LogoElement): { top: number; left: number; right: number; bottom: number } => {
   const { position, type } = element;
@@ -326,6 +344,9 @@ export const getElementBounds = (element: LogoElement): { top: number; left: num
       };
     
     case 'circle':
+    case 'hexagon':
+    case 'pentagon':
+    case 'octagonStar':
       const radius = element.radius || 0;
       return {
         top: position.y - radius,
@@ -576,39 +597,48 @@ export const isPointInElement = (element: LogoElement, point: Position): boolean
     case 'polygon':
     case 'star':
     case 'hexagon':
-    case 'pentagon': { // Polygons, stars, hexagons, and pentagons use the same logic
+    case 'pentagon':
+    case 'octagonStar': { // Polygons, stars, hexagons, pentagons, and octagon stars use the same logic
       let vertices: Position[] = [];
       if (type === 'polygon') {
         const sides = element.sides || 3;
         const polyRadius = element.radius || 0;
         for (let i = 0; i < sides; i++) {
           const angle = (i / sides) * 2 * Math.PI - Math.PI / 2;
-          // Vertices relative to the center (cx, cy)
           vertices.push({ 
             x: polyRadius * Math.cos(angle),
             y: polyRadius * Math.sin(angle)
           });
         }
-      } else if (type === 'star') { // Star
+      } else if (type === 'star') {
         const numPoints = element.numPoints || 5;
         const outerRadius = element.outerRadius || 0;
         const innerRadius = element.innerRadius || outerRadius / 2;
         for (let i = 0; i < numPoints * 2; i++) {
           const radius = i % 2 === 0 ? outerRadius : innerRadius;
           const angle = (i / (numPoints * 2)) * 2 * Math.PI - Math.PI / 2;
-          // Vertices relative to the center (cx, cy)
-           vertices.push({ 
-             x: radius * Math.cos(angle),
-             y: radius * Math.sin(angle)
-           });
+          vertices.push({ 
+            x: radius * Math.cos(angle),
+            y: radius * Math.sin(angle)
+          });
         }
-      } else if (type === 'pentagon') { // Pentagon
+      } else if (type === 'pentagon') {
         const pentagonRadius = element.radius || 0;
         for (let i = 0; i < 5; i++) {
           const angle = (i * 2 * Math.PI) / 5 - Math.PI / 2;
           vertices.push({
             x: pentagonRadius * Math.cos(angle),
             y: pentagonRadius * Math.sin(angle)
+          });
+        }
+      } else if (type === 'octagonStar') {
+        const starRadius = element.radius || 0;
+        for (let i = 0; i < 16; i++) {
+          const radius = i % 2 === 0 ? starRadius : starRadius * 0.4;
+          const angle = (i * Math.PI) / 8;
+          vertices.push({
+            x: radius * Math.cos(angle),
+            y: radius * Math.sin(angle)
           });
         }
       } else { // Hexagon
@@ -623,8 +653,6 @@ export const isPointInElement = (element: LogoElement, point: Position): boolean
       }
 
       // Ray Casting Algorithm (point in polygon test)
-      // Check against the un-rotated point (rotatedX, rotatedY)
-      // and the un-rotated vertices (relative to center)
       let inside = false;
       for (let i = 0, j = vertices.length - 1; i < vertices.length; j = i++) {
         const xi = vertices[i].x, yi = vertices[i].y;

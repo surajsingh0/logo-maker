@@ -15,7 +15,8 @@ import {
   createCurvedLine,
   createHexagon,
   createArrow,
-  createPentagon
+  createPentagon,
+  createOctagonStar
 } from './utils/elementUtils';
 import { LogoElement, Position } from './types';
 import './App.css';
@@ -138,6 +139,14 @@ function App() {
     addElement(createPentagon(center));
   };
 
+  const handleAddOctagonStar = () => {
+    const center = {
+      x: canvasSettings.width / 2,
+      y: canvasSettings.height / 2,
+    };
+    addElement(createOctagonStar(center));
+  };
+
   const handleAddArrow = () => {
     const start = {
       x: canvasSettings.width / 2 - 50,
@@ -225,6 +234,7 @@ function App() {
         onAddCurvedLine={handleAddCurvedLine}
         onAddHexagon={handleAddHexagon}
         onAddPentagon={handleAddPentagon}
+        onAddOctagonStar={handleAddOctagonStar}
         onAddArrow={handleAddArrow}
         onUndo={undo}
         onRedo={redo}

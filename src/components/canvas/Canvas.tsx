@@ -274,6 +274,13 @@ const Canvas: React.FC<CanvasProps> = ({
            update = { radius: newRadius };
            break;
          }
+         case 'octagonStar': {
+           const { radius: initialRadius = 0 } = initialElementState;
+           const delta = calculateDistanceChange(resizeHandle, dx, dy);
+           const newRadius = Math.max(5, initialRadius + delta);
+           update = { radius: newRadius };
+           break;
+         }
          case 'text': {
            const { fontSize: initialFontSize = 16 } = initialElementState;
            const delta = Math.abs(dx) > Math.abs(dy) ? dx : dy;

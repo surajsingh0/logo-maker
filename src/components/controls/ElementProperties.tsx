@@ -71,7 +71,7 @@ const ElementProperties: React.FC<ElementPropertiesProps> = ({
   };
 
   const handleRadiusChange = (value: string) => {
-    if (!['circle', 'polygon', 'hexagon', 'pentagon'].includes(element.type)) return;
+    if (!['circle', 'polygon', 'hexagon', 'pentagon', 'octagonStar'].includes(element.type)) return;
 
     const numValue = parseFloat(value);
     if (isNaN(numValue) || numValue <= 0) return;
@@ -311,6 +311,23 @@ const ElementProperties: React.FC<ElementPropertiesProps> = ({
       specificControls = (
         <div className="property-group">
           <h4>Pentagon Properties</h4>
+          <div className="property-row">
+            <label>Radius:</label>
+            <input
+              type="number"
+              min="1"
+              value={element.radius || 0}
+              onChange={(e) => handleRadiusChange(e.target.value)}
+            />
+          </div>
+        </div>
+      );
+      break;
+
+    case 'octagonStar':
+      specificControls = (
+        <div className="property-group">
+          <h4>Octagon Star Properties</h4>
           <div className="property-row">
             <label>Radius:</label>
             <input

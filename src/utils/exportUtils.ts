@@ -179,6 +179,53 @@ export const generateSvgString = (state: LogoState): string => {
         break;
       }
 
+      case 'pentagon': {
+        const pentRadius = element.radius || 0;
+        if (pentRadius > 0) {
+          const pentPoints: string[] = [];
+          for (let i = 0; i < 5; i++) {
+            const angle = (i / 5) * 2 * Math.PI - Math.PI / 2;
+            const px = element.position.x + pentRadius * Math.cos(angle);
+            const py = element.position.y + pentRadius * Math.sin(angle);
+            pentPoints.push(`${px},${py}`);
+          }
+          const pointsStr = pentPoints.join(' ');
+          svgContent += `<polygon 
+            points="${pointsStr}" 
+            fill="${element.styles.fill}" 
+            stroke="${element.styles.stroke}" 
+            stroke-width="${element.styles.strokeWidth}" 
+            opacity="${element.styles.opacity}" 
+            transform="rotate(${element.rotation} ${element.position.x} ${element.position.y})"
+          />`;
+        }
+        break;
+      }
+
+      case 'octagonStar': {
+        const starRadius = element.radius || 0;
+        if (starRadius > 0) {
+          const starPoints: string[] = [];
+          for (let i = 0; i < 16; i++) {
+            const currentRadius = i % 2 === 0 ? starRadius : starRadius * 0.4;
+            const angle = (i * Math.PI) / 8;
+            const px = element.position.x + currentRadius * Math.cos(angle);
+            const py = element.position.y + currentRadius * Math.sin(angle);
+            starPoints.push(`${px},${py}`);
+          }
+          const pointsStr = starPoints.join(' ');
+          svgContent += `<polygon 
+            points="${pointsStr}" 
+            fill="${element.styles.fill}" 
+            stroke="${element.styles.stroke}" 
+            stroke-width="${element.styles.strokeWidth}" 
+            opacity="${element.styles.opacity}" 
+            transform="rotate(${element.rotation} ${element.position.x} ${element.position.y})"
+          />`;
+        }
+        break;
+      }
+
       case 'ellipse':
         svgContent += `<ellipse 
           cx="${element.position.x}" 

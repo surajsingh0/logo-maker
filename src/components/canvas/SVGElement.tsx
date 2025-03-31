@@ -194,6 +194,33 @@ const SVGElement: React.FC<SVGElementProps> = ({ element, onResizeStart, onEndpo
           />
         );
       }
+      case 'octagonStar': {
+        const starRadius = element.radius || 0;
+        if (starRadius === 0) return null;
+        const starPoints: string[] = [];
+        
+        // Calculate points for 8-pointed star
+        for (let i = 0; i < 16; i++) {
+          const radius = i % 2 === 0 ? starRadius : starRadius * 0.4;
+          const angle = (i * Math.PI) / 8;
+          const px = elementPositionProps.x + radius * Math.cos(angle);
+          const py = elementPositionProps.y + radius * Math.sin(angle);
+          starPoints.push(`${px},${py}`);
+        }
+        
+        const pointsStr = starPoints.join(' ');
+        return (
+          <polygon
+            ref={elementRef as React.RefObject<SVGPolygonElement>}
+            points={pointsStr}
+            fill={fill}
+            stroke={stroke}
+            strokeWidth={strokeWidth}
+            opacity={opacity}
+            {...selectedStyle}
+          />
+        );
+      }
       default:
         return null;
     }
@@ -414,7 +441,7 @@ const SVGElement: React.FC<SVGElementProps> = ({ element, onResizeStart, onEndpo
         {renderedElement}
       </g>
       {element.selected && onResizeStart && localBbox && 
-       !['curvedLine', 'line'].includes(type) && (
+       !['curvedLine', 'line', 'arrow'].includes(type) && (
         <ResizeHandles 
           bbox={localBbox}
           transform={groupTransform}

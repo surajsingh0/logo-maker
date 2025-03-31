@@ -96,7 +96,9 @@ export function calculateElementBoundingBox(element: LogoElement): BoundingBox |
     case 'path':
     case 'polygon':
     case 'star':
-    case 'hexagon': {
+    case 'hexagon':
+    case 'pentagon':
+    case 'octagonStar': {
       // Calculate points as done in exportUtils (absolute coordinates)
       let points: Position[] = [];
       if (element.type === 'line' || element.type === 'arrow' || element.type === 'path') {
@@ -136,6 +138,29 @@ export function calculateElementBoundingBox(element: LogoElement): BoundingBox |
           points.push({
             x: element.position.x + radius * Math.cos(angle),
             y: element.position.y + radius * Math.sin(angle)
+          });
+        }
+      }
+      else if (element.type === 'pentagon') {
+        const radius = element.radius || 0;
+        if (radius <= 0) return null;
+        for (let i = 0; i < 5; i++) {
+          const angle = (i / 5) * 2 * Math.PI - Math.PI / 2;
+          points.push({
+            x: element.position.x + radius * Math.cos(angle),
+            y: element.position.y + radius * Math.sin(angle)
+          });
+        }
+      }
+      else if (element.type === 'octagonStar') {
+        const radius = element.radius || 0;
+        if (radius <= 0) return null;
+        for (let i = 0; i < 16; i++) {
+          const currentRadius = i % 2 === 0 ? radius : radius * 0.4;
+          const angle = (i * Math.PI) / 8;
+          points.push({
+            x: element.position.x + currentRadius * Math.cos(angle),
+            y: element.position.y + currentRadius * Math.sin(angle)
           });
         }
       }
