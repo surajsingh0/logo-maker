@@ -156,6 +156,29 @@ export const generateSvgString = (state: LogoState): string => {
         break;
       }
 
+      case 'hexagon': {
+        const hexRadius = element.radius || 0;
+        if (hexRadius > 0) {
+          const hexPoints: string[] = [];
+          for (let i = 0; i < 6; i++) {
+            const angle = (i / 6) * 2 * Math.PI - Math.PI / 2;
+            const px = element.position.x + hexRadius * Math.cos(angle);
+            const py = element.position.y + hexRadius * Math.sin(angle);
+            hexPoints.push(`${px},${py}`);
+          }
+          const pointsStr = hexPoints.join(' ');
+          svgContent += `<polygon 
+            points="${pointsStr}" 
+            fill="${element.styles.fill}" 
+            stroke="${element.styles.stroke}" 
+            stroke-width="${element.styles.strokeWidth}" 
+            opacity="${element.styles.opacity}" 
+            transform="rotate(${element.rotation} ${element.position.x} ${element.position.y})"
+          />`;
+        }
+        break;
+      }
+
       case 'ellipse':
         svgContent += `<ellipse 
           cx="${element.position.x}" 

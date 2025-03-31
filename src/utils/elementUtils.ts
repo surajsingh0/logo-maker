@@ -213,6 +213,24 @@ export const createStar = (position: Position, numPoints: number = 5, outerRadiu
   };
 };
 
+// Create a hexagon element
+export const createHexagon = (position: Position, radius: number = 50): LogoElement => {
+  return {
+    id: generateId(),
+    type: 'hexagon',
+    position,
+    radius, // Distance from center to vertex
+    styles: {
+      fill: '#e74c3c',
+      stroke: '#c0392b',
+      strokeWidth: 2,
+      opacity: 1,
+    },
+    rotation: 0,
+    selected: false,
+  };
+};
+
 // Calculate element bounds (useful for selection and transformations)
 export const getElementBounds = (element: LogoElement): { top: number; left: number; right: number; bottom: number } => {
   const { position, type } = element;
@@ -430,7 +448,8 @@ export const isPointInElement = (element: LogoElement, point: Position): boolean
     }
     
     case 'polygon':
-    case 'star': { // Polygons and stars use the same logic
+    case 'star':
+    case 'hexagon': { // Polygons, stars, and hexagons use the same logic
       let vertices: Position[] = [];
       if (type === 'polygon') {
         const sides = element.sides || 3;
@@ -443,7 +462,7 @@ export const isPointInElement = (element: LogoElement, point: Position): boolean
             y: polyRadius * Math.sin(angle)
           });
         }
-      } else { // Star
+      } else if (type === 'star') { // Star
         const numPoints = element.numPoints || 5;
         const outerRadius = element.outerRadius || 0;
         const innerRadius = element.innerRadius || outerRadius / 2;
@@ -455,6 +474,15 @@ export const isPointInElement = (element: LogoElement, point: Position): boolean
              x: radius * Math.cos(angle),
              y: radius * Math.sin(angle)
            });
+        }
+      } else { // Hexagon
+        const hexRadius = element.radius || 0;
+        for (let i = 0; i < 6; i++) {
+          const angle = (i / 6) * 2 * Math.PI - Math.PI / 2;
+          vertices.push({
+            x: hexRadius * Math.cos(angle),
+            y: hexRadius * Math.sin(angle)
+          });
         }
       }
 

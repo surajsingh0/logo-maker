@@ -94,7 +94,8 @@ export function calculateElementBoundingBox(element: LogoElement): BoundingBox |
     case 'line':
     case 'path':
     case 'polygon':
-    case 'star': {
+    case 'star':
+    case 'hexagon': {
       // Calculate points as done in exportUtils (absolute coordinates)
       let points: Position[] = [];
       if (element.type === 'line' || element.type === 'path') {
@@ -125,6 +126,17 @@ export function calculateElementBoundingBox(element: LogoElement): BoundingBox |
                 y: element.position.y + radius * Math.sin(angle)
             });
          }
+      }
+      else if (element.type === 'hexagon') {
+        const radius = element.radius || 0;
+        if (radius <= 0) return null;
+        for (let i = 0; i < 6; i++) {
+          const angle = (i / 6) * 2 * Math.PI - Math.PI / 2;
+          points.push({
+            x: element.position.x + radius * Math.cos(angle),
+            y: element.position.y + radius * Math.sin(angle)
+          });
+        }
       }
 
       if (points.length === 0) return null;

@@ -25,7 +25,8 @@ export type ElementType =
   | 'line'
   | 'polygon'
   | 'star'
-  | 'curvedLine';
+  | 'curvedLine'
+  | 'hexagon';
 
 // Define the base structure for all logo elements
 export interface LogoElement {

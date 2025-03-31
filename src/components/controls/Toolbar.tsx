@@ -10,6 +10,7 @@ interface ToolbarProps {
   onAddPolygon: () => void;
   onAddStar: () => void;
   onAddCurvedLine: () => void;
+  onAddHexagon: () => void;
   onUndo: () => void;
   onRedo: () => void;
   onDelete: () => void;
@@ -34,6 +35,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
   onAddPolygon,
   onAddStar,
   onAddCurvedLine,
+  onAddHexagon,
   onUndo,
   onRedo,
   onDelete,
@@ -96,6 +98,15 @@ const Toolbar: React.FC<ToolbarProps> = ({
           >
             <i className="icon">★</i>
             <span>Star</span>
+          </button>
+
+          <button 
+            className="toolbar-button" 
+            onClick={onAddHexagon}
+            title="Add Hexagon"
+          >
+            <i className="icon">⬡</i>
+            <span>Hexagon</span>
           </button>
           
           <button 

@@ -150,6 +150,28 @@ const SVGElement: React.FC<SVGElementProps> = ({ element, onResizeStart, onEndpo
           />
         );
       }
+      case 'hexagon': {
+        const hexRadius = element.radius || 0;
+        if (hexRadius === 0) return null;
+        const hexPoints: string[] = [];
+        for (let i = 0; i < 6; i++) {
+          const angle = (i / 6) * 2 * Math.PI - Math.PI / 2;
+          const px = elementPositionProps.x + hexRadius * Math.cos(angle);
+          const py = elementPositionProps.y + hexRadius * Math.sin(angle);
+          hexPoints.push(`${px},${py}`);
+        }
+        const pointsStr = hexPoints.join(' ');
+        return (
+          <polygon
+            ref={elementRef as React.RefObject<SVGPolygonElement>}
+            points={pointsStr}
+            fill={styles.fill}
+            stroke={styles.stroke}
+            strokeWidth={styles.strokeWidth}
+            opacity={styles.opacity}
+          />
+        );
+      }
       default:
         return null;
     }
