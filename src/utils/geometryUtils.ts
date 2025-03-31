@@ -178,6 +178,39 @@ export function calculateElementBoundingBox(element: LogoElement): BoundingBox |
       return { minX, minY, maxX, maxY };
     }
 
+    case 'blockArrow': {
+      const { width = 0, height = 0 } = element.dimensions || {};
+      const points = element.points || [];
+      if (points.length === 0) return null;
+
+      // Calculate bounds from points in local coordinates
+      const localMinX = Math.min(...points.map(p => p.x));
+      const localMaxX = Math.max(...points.map(p => p.x));
+      const localMinY = Math.min(...points.map(p => p.y));
+      const localMaxY = Math.max(...points.map(p => p.y));
+
+      // Convert to absolute coordinates
+      const { x, y } = element.position;
+      const center = { x: x + width / 2, y: y + height / 2 };
+
+      // Create corners from local bounds
+      const corners: Position[] = [
+        { x: x + localMinX, y: y + localMinY },
+        { x: x + localMaxX, y: y + localMinY },
+        { x: x + localMaxX, y: y + localMaxY },
+        { x: x + localMinX, y: y + localMaxY },
+      ];
+
+      // Rotate corners if needed
+      const rotatedCorners = corners.map(p => rotatePoint(p, center, element.rotation));
+
+      const minX = Math.min(...rotatedCorners.map(p => p.x)) - halfStroke;
+      const minY = Math.min(...rotatedCorners.map(p => p.y)) - halfStroke;
+      const maxX = Math.max(...rotatedCorners.map(p => p.x)) + halfStroke;
+      const maxY = Math.max(...rotatedCorners.map(p => p.y)) + halfStroke;
+      return { minX, minY, maxX, maxY };
+    }
+
     case 'text':{
       // Approximation: Use position and estimated size based on font size.
       // Accurate text bounding box requires rendering or complex font metrics.
@@ -253,4 +286,77 @@ export function calculateOverallBoundingBox(elements: LogoElement[]): (BoundingB
     width: width,
     height: height,
   };
+}
+
+// --- Point In Element Calculation ---
+
+/** Checks if a point is inside an element */
+export function isPointInElement(element: LogoElement, position: Position): boolean {
+  const box = calculateElementBoundingBox(element);
+  if (!box) return false;
+
+  const point = { x: position.x - element.position.x, y: position.y - element.position.y };
+  const halfStroke = (element.styles.strokeWidth || 0) / 2;
+
+  switch (element.type) {
+    case 'rectangle':
+    case 'circle':
+    case 'ellipse':
+    case 'line':
+    case 'arrow':
+    case 'path':
+    case 'polygon':
+    case 'star':
+    case 'hexagon':
+    case 'pentagon':
+    case 'octagonStar':
+    case 'blockArrow': {
+      const points = element.points || [];
+      if (points.length === 0) return false;
+
+      // Ray Casting Algorithm (point in polygon test)
+      let inside = false;
+      for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+        const xi = points[i].x + position.x;
+        const yi = points[i].y + position.y;
+        const xj = points[j].x + position.x;
+        const yj = points[j].y + position.y;
+
+        const intersect = ((yi > point.y) !== (yj > point.y))
+            && (point.x < (xj - xi) * (point.y - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+      }
+      return inside;
+    }
+
+    case 'text': {
+      // Approximation: Use position and estimated size based on font size.
+      // Accurate text bounding box requires rendering or complex font metrics.
+      const fontSize = element.fontSize || 16;
+      const estimatedWidth = (element.content?.length || 1) * fontSize * 0.6; // Rough estimate
+      const estimatedHeight = fontSize;
+      const { x, y } = element.position;
+      // Assuming position is middle-center based on previous findings
+      const approxHalfWidth = estimatedWidth / 2;
+      const approxHalfHeight = estimatedHeight / 2;
+
+      const corners: Position[] = [
+        { x: x - approxHalfWidth, y: y - approxHalfHeight },
+        { x: x + approxHalfWidth, y: y - approxHalfHeight },
+        { x: x + approxHalfWidth, y: y + approxHalfHeight },
+        { x: x - approxHalfWidth, y: y + approxHalfHeight },
+      ];
+
+      const rotatedCorners = corners.map(p => rotatePoint(p, { x, y }, element.rotation));
+
+      const minX = Math.min(...rotatedCorners.map(p => p.x)) - halfStroke; // Add stroke? Text usually doesn't have same stroke concept
+      const minY = Math.min(...rotatedCorners.map(p => p.y)) - halfStroke;
+      const maxX = Math.max(...rotatedCorners.map(p => p.x)) + halfStroke;
+      const maxY = Math.max(...rotatedCorners.map(p => p.y)) + halfStroke;
+      return point.x >= minX && point.x <= maxX && point.y >= minY && point.y <= maxY;
+    }
+
+    default:
+      return false;
+  }
 } 

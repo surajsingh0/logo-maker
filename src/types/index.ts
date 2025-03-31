@@ -29,7 +29,8 @@ export type ElementType =
   | 'hexagon'
   | 'arrow'
   | 'pentagon'
-  | 'octagonStar';
+  | 'octagonStar'
+  | 'blockArrow';
 
 // Define the base structure for all logo elements
 export interface LogoElement {

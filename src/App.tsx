@@ -16,7 +16,8 @@ import {
   createHexagon,
   createArrow,
   createPentagon,
-  createOctagonStar
+  createOctagonStar,
+  createBlockArrow
 } from './utils/elementUtils';
 import { LogoElement, Position } from './types';
 import './App.css';
@@ -147,6 +148,14 @@ function App() {
     addElement(createOctagonStar(center));
   };
 
+  const handleAddBlockArrow = () => {
+    const center = {
+      x: canvasSettings.width / 2 - 60,
+      y: canvasSettings.height / 2 - 30,
+    };
+    addElement(createBlockArrow(center));
+  };
+
   const handleAddArrow = () => {
     const start = {
       x: canvasSettings.width / 2 - 50,
@@ -235,6 +244,7 @@ function App() {
         onAddHexagon={handleAddHexagon}
         onAddPentagon={handleAddPentagon}
         onAddOctagonStar={handleAddOctagonStar}
+        onAddBlockArrow={handleAddBlockArrow}
         onAddArrow={handleAddArrow}
         onUndo={undo}
         onRedo={redo}

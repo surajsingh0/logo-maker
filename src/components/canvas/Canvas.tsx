@@ -281,6 +281,52 @@ const Canvas: React.FC<CanvasProps> = ({
            update = { radius: newRadius };
            break;
          }
+         case 'blockArrow': { 
+           const { position: initialPosition, dimensions: initialDimensions } = initialElementState;
+           if (!initialDimensions) break;
+           let newX = initialPosition.x;
+           let newY = initialPosition.y;
+           let newWidth = initialDimensions.width;
+           let newHeight = initialDimensions.height;
+
+           if (resizeHandle.includes('e')) {
+             newWidth = Math.max(10, initialDimensions.width + dx);
+           } else if (resizeHandle.includes('w')) {
+             const calculatedWidth = Math.max(10, initialDimensions.width - dx);
+             newX = initialPosition.x + (initialDimensions.width - calculatedWidth);
+             newWidth = calculatedWidth;
+           }
+           if (resizeHandle.includes('s')) {
+             newHeight = Math.max(10, initialDimensions.height + dy);
+           } else if (resizeHandle.includes('n')) {
+             const calculatedHeight = Math.max(10, initialDimensions.height - dy);
+             newY = initialPosition.y + (initialDimensions.height - calculatedHeight);
+             newHeight = calculatedHeight;
+           }
+
+           // Recalculate points for the block arrow shape
+           const headWidth = newHeight; // Arrow head is as wide as the height
+           const bodyWidth = newWidth - headWidth;
+           const bodyHeight = newHeight * 0.6; // Body is 60% of total height
+           const yOffset = (newHeight - bodyHeight) / 2;
+
+           const points = [
+             { x: 0, y: yOffset }, // Body start top
+             { x: bodyWidth, y: yOffset }, // Body end top
+             { x: bodyWidth, y: 0 }, // Head start top
+             { x: newWidth, y: newHeight / 2 }, // Head point
+             { x: bodyWidth, y: newHeight }, // Head start bottom
+             { x: bodyWidth, y: yOffset + bodyHeight }, // Body end bottom
+             { x: 0, y: yOffset + bodyHeight }, // Body start bottom
+           ];
+
+           update = { 
+             position: { x: newX, y: newY }, 
+             dimensions: { width: newWidth, height: newHeight },
+             points
+           };
+           break;
+         }
          case 'text': {
            const { fontSize: initialFontSize = 16 } = initialElementState;
            const delta = Math.abs(dx) > Math.abs(dy) ? dx : dy;

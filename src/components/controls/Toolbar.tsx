@@ -14,6 +14,7 @@ interface ToolbarProps {
   onAddArrow: () => void;
   onAddPentagon: () => void;
   onAddOctagonStar: () => void;
+  onAddBlockArrow: () => void;
   onUndo: () => void;
   onRedo: () => void;
   onDelete: () => void;
@@ -42,6 +43,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
   onAddArrow,
   onAddPentagon,
   onAddOctagonStar,
+  onAddBlockArrow,
   onUndo,
   onRedo,
   onDelete,
@@ -180,6 +182,15 @@ const Toolbar: React.FC<ToolbarProps> = ({
           >
             <i className="icon">➔</i>
             <span>Arrow</span>
+          </button>
+
+          <button 
+            className="toolbar-button" 
+            onClick={onAddBlockArrow}
+            title="Add Block Arrow"
+          >
+            <i className="icon">➤</i>
+            <span>Block Arrow</span>
           </button>
         </div>
       </div>

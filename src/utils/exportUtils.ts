@@ -226,6 +226,33 @@ export const generateSvgString = (state: LogoState): string => {
         break;
       }
 
+      case 'blockArrow': {
+        const points = element.points || [];
+        if (points.length > 0) {
+          // Convert points to absolute coordinates
+          const absolutePoints = points.map(p => ({
+            x: p.x + element.position.x,
+            y: p.y + element.position.y
+          }));
+          const pointsStr = absolutePoints.map(p => `${p.x},${p.y}`).join(' ');
+          
+          // Calculate center for rotation
+          const { width = 0, height = 0 } = element.dimensions || {};
+          const centerX = element.position.x + width / 2;
+          const centerY = element.position.y + height / 2;
+
+          svgContent += `<polygon 
+            points="${pointsStr}" 
+            fill="${element.styles.fill}" 
+            stroke="${element.styles.stroke}" 
+            stroke-width="${element.styles.strokeWidth}" 
+            opacity="${element.styles.opacity}" 
+            transform="rotate(${element.rotation} ${centerX} ${centerY})"
+          />`;
+        }
+        break;
+      }
+
       case 'ellipse':
         svgContent += `<ellipse 
           cx="${element.position.x}" 

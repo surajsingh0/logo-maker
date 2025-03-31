@@ -329,6 +329,43 @@ export const createOctagonStar = (position: Position, radius: number = 50): Logo
   };
 };
 
+// Create a block arrow element
+export const createBlockArrow = (position: Position): LogoElement => {
+  const width = 120;
+  const height = 60;
+  const headWidth = height; // Arrow head is as wide as the height
+  const bodyWidth = width - headWidth;
+  const bodyHeight = height * 0.6; // Body is 60% of total height
+  const yOffset = (height - bodyHeight) / 2;
+
+  // Calculate points for the block arrow shape
+  const points = [
+    { x: 0, y: yOffset }, // Body start top
+    { x: bodyWidth, y: yOffset }, // Body end top
+    { x: bodyWidth, y: 0 }, // Head start top
+    { x: width, y: height / 2 }, // Head point
+    { x: bodyWidth, y: height }, // Head start bottom
+    { x: bodyWidth, y: yOffset + bodyHeight }, // Body end bottom
+    { x: 0, y: yOffset + bodyHeight }, // Body start bottom
+  ];
+
+  return {
+    id: generateId(),
+    type: 'blockArrow',
+    position,
+    points,
+    dimensions: { width, height },
+    styles: {
+      fill: '#3498db',
+      stroke: '#2980b9',
+      strokeWidth: 2,
+      opacity: 1,
+    },
+    rotation: 0,
+    selected: false,
+  };
+};
+
 // Calculate element bounds (useful for selection and transformations)
 export const getElementBounds = (element: LogoElement): { top: number; left: number; right: number; bottom: number } => {
   const { position, type } = element;
@@ -381,6 +418,15 @@ export const getElementBounds = (element: LogoElement): { top: number; left: num
         left: Math.min(...xs),
         right: Math.max(...xs),
         bottom: Math.max(...ys),
+      };
+    
+    case 'blockArrow':
+      const blockDimensions = (element.dimensions || {}) as { width?: number; height?: number };
+      return {
+        top: position.y,
+        left: position.x,
+        right: position.x + (blockDimensions.width || 0),
+        bottom: position.y + (blockDimensions.height || 0),
       };
     
     default:
@@ -660,6 +706,32 @@ export const isPointInElement = (element: LogoElement, point: Position): boolean
 
         const intersect = ((yi > rotatedY) !== (yj > rotatedY))
             && (rotatedX < (xj - xi) * (rotatedY - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+      }
+      return inside;
+    }
+
+    case 'blockArrow': {
+      // For block arrows, we use the points array for hit detection
+      const points = element.points || [];
+      if (points.length === 0) return false;
+
+      // Transform the point to the element's local coordinate system
+      const localPoint = {
+        x: point.x - position.x,
+        y: point.y - position.y
+      };
+
+      // Ray Casting Algorithm (point in polygon test)
+      let inside = false;
+      for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+        const xi = points[i].x;
+        const yi = points[i].y;
+        const xj = points[j].x;
+        const yj = points[j].y;
+
+        const intersect = ((yi > localPoint.y) !== (yj > localPoint.y))
+            && (localPoint.x < (xj - xi) * (localPoint.y - yi) / (yj - yi) + xi);
         if (intersect) inside = !inside;
       }
       return inside;

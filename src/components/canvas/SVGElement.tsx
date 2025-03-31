@@ -221,6 +221,22 @@ const SVGElement: React.FC<SVGElementProps> = ({ element, onResizeStart, onEndpo
           />
         );
       }
+      case 'blockArrow': {
+        const points = element.points || [];
+        if (points.length < 7) return null;
+        const pointsStr = points.map(p => `${p.x},${p.y}`).join(' ');
+        return (
+          <polygon
+            ref={elementRef as React.RefObject<SVGPolygonElement>}
+            points={pointsStr}
+            fill={fill}
+            stroke={stroke}
+            strokeWidth={strokeWidth}
+            opacity={opacity}
+            {...selectedStyle}
+          />
+        );
+      }
       default:
         return null;
     }
