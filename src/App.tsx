@@ -140,9 +140,12 @@ function App() {
   };
 
   const handleExportPNG = () => {
-    if (canvasRef.current) {
-      exportPng(canvasRef.current);
-    }
+    exportPng({
+      elements,
+      selectedElementId,
+      canvasSettings,
+      history: { past: [], future: [] }
+    });
   };
 
   const handleDelete = () => {
