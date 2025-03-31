@@ -9,6 +9,7 @@ interface ToolbarProps {
   onAddLine: () => void;
   onAddPolygon: () => void;
   onAddStar: () => void;
+  onAddCurvedLine: () => void;
   onUndo: () => void;
   onRedo: () => void;
   onDelete: () => void;
@@ -32,6 +33,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
   onAddLine,
   onAddPolygon,
   onAddStar,
+  onAddCurvedLine,
   onUndo,
   onRedo,
   onDelete,
@@ -103,6 +105,19 @@ const Toolbar: React.FC<ToolbarProps> = ({
           >
             <i className="icon">╱</i>
             <span>Line</span>
+          </button>
+
+          <button 
+            className="toolbar-button" 
+            onClick={onAddCurvedLine}
+            title="Curve"
+          >
+            <i className="icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M4 20 Q12 4 20 20" stroke="currentColor" strokeWidth="2" fill="none"/>
+              </svg>
+            </i>
+            <span>Curve</span>
           </button>
         </div>
       </div>

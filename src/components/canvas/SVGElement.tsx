@@ -97,6 +97,11 @@ const SVGElement: React.FC<SVGElementProps> = ({ element, onResizeStart, onEndpo
               opacity={opacity}
            />
         );
+      case 'line': {
+        if (!element.points || element.points.length < 2) return null;
+        const [start, end] = element.points;
+        return <line x1={start.x} y1={start.y} x2={end.x} y2={end.y} {...selectedStyle} />;
+      }
       case 'polygon': {
         const sides = element.sides || 3;
         const polyRadius = element.radius || 0;
@@ -145,8 +150,6 @@ const SVGElement: React.FC<SVGElementProps> = ({ element, onResizeStart, onEndpo
           />
         );
       }
-      case 'line':
-        return null;
       default:
         return null;
     }
@@ -155,56 +158,143 @@ const SVGElement: React.FC<SVGElementProps> = ({ element, onResizeStart, onEndpo
   const renderedElement = renderElement();
 
   if (type === 'line') {
-      const linePoints = element.points || [];
-      if (linePoints.length < 2) return null;
-      const p1 = linePoints[0];
-      const p2 = linePoints[1];
-      const handleRadius = 5;
-      const lineTransform = `rotate(${rotation} ${position.x} ${position.y})`;
+    const points = element.points || [];
+    if (points.length < 2) return null;
+    const [start, end] = points;
+    const lineTransform = `rotate(${rotation} ${position.x} ${position.y})`;
+    const handleRadius = 6;
 
-      return (
-        <g>
-          <line
-            x1={p1.x}
-            y1={p1.y}
-            x2={p2.x}
-            y2={p2.y}
-            stroke={stroke}
-            strokeWidth={element.selected ? strokeWidth + 1 : strokeWidth}
-            strokeDasharray={element.selected ? '4 2' : undefined}
-            opacity={opacity}
-            transform={lineTransform} 
-          />
-          {element.selected && onEndpointDown && (
-            <> 
-              <circle
-                className="line-endpoint-handle"
-                cx={p1.x}
-                cy={p1.y}
-                r={handleRadius}
-                fill="white"
-                stroke="#2196f3"
-                strokeWidth={1}
-                style={{ cursor: 'pointer' }}
-                onMouseDown={(e) => onEndpointDown(element.id, 0, e)}
-                transform={lineTransform} 
-              />
-              <circle
-                className="line-endpoint-handle"
-                cx={p2.x}
-                cy={p2.y}
-                r={handleRadius}
-                fill="white"
-                stroke="#2196f3"
-                strokeWidth={1}
-                style={{ cursor: 'pointer' }}
-                onMouseDown={(e) => onEndpointDown(element.id, 1, e)}
-                transform={lineTransform}
-              />
-            </>
-          )}
-        </g>
-      );
+    return (
+      <g>
+        <line
+          ref={elementRef as React.RefObject<SVGLineElement>}
+          x1={start.x}
+          y1={start.y}
+          x2={end.x}
+          y2={end.y}
+          stroke={stroke}
+          strokeWidth={element.selected ? strokeWidth + 1 : strokeWidth}
+          strokeDasharray={element.selected ? '4 2' : undefined}
+          opacity={opacity}
+          transform={lineTransform}
+        />
+        {element.selected && onEndpointDown && (
+          <>
+            <circle
+              className="resize-handle nw corner"
+              cx={start.x}
+              cy={start.y}
+              r={handleRadius}
+              fill="white"
+              stroke="#2196f3"
+              strokeWidth={1.5}
+              vectorEffect="non-scaling-stroke"
+              transform={lineTransform}
+              onMouseDown={(e) => onEndpointDown(element.id, 0, e)}
+            />
+            <circle
+              className="resize-handle se corner"
+              cx={end.x}
+              cy={end.y}
+              r={handleRadius}
+              fill="white"
+              stroke="#2196f3"
+              strokeWidth={1.5}
+              vectorEffect="non-scaling-stroke"
+              transform={lineTransform}
+              onMouseDown={(e) => onEndpointDown(element.id, 1, e)}
+            />
+          </>
+        )}
+      </g>
+    );
+  }
+
+  if (type === 'curvedLine') {
+    const points = element.points || [];
+    if (points.length < 3) return null;
+    const [start, control, end] = points;
+    const handleRadius = 6;
+
+    return (
+      <g transform={groupTransform}>
+        {/* Guide lines when selected */}
+        {element.selected && (
+          <>
+            <line
+              x1={start.x}
+              y1={start.y}
+              x2={control.x}
+              y2={control.y}
+              stroke="#2196f3"
+              strokeWidth={1}
+              strokeDasharray="4 4"
+              opacity={0.5}
+            />
+            <line
+              x1={control.x}
+              y1={control.y}
+              x2={end.x}
+              y2={end.y}
+              stroke="#2196f3"
+              strokeWidth={1}
+              strokeDasharray="4 4"
+              opacity={0.5}
+            />
+          </>
+        )}
+
+        {/* The curve itself */}
+        <path
+          ref={elementRef as React.RefObject<SVGPathElement>}
+          d={`M ${start.x} ${start.y} Q ${control.x} ${control.y} ${end.x} ${end.y}`}
+          fill="none"
+          stroke={stroke}
+          strokeWidth={element.selected ? strokeWidth + 1 : strokeWidth}
+          strokeDasharray={element.selected ? '4 2' : undefined}
+          opacity={opacity}
+        />
+
+        {/* Control points when selected */}
+        {element.selected && onEndpointDown && (
+          <>
+            <circle
+              className="resize-handle nw corner"
+              cx={start.x}
+              cy={start.y}
+              r={handleRadius}
+              fill="white"
+              stroke="#2196f3"
+              strokeWidth={1.5}
+              vectorEffect="non-scaling-stroke"
+              onMouseDown={(e) => onEndpointDown(element.id, 0, e)}
+            />
+            <circle
+              className="resize-handle n"
+              cx={control.x}
+              cy={control.y}
+              r={5}
+              fill="white"
+              stroke="#2196f3"
+              strokeWidth={1.5}
+              vectorEffect="non-scaling-stroke"
+              onMouseDown={(e) => onEndpointDown(element.id, 1, e)}
+            />
+            <circle
+              className="resize-handle se corner"
+              cx={end.x}
+              cy={end.y}
+              r={handleRadius}
+              fill="white"
+              stroke="#2196f3"
+              strokeWidth={1.5}
+              vectorEffect="non-scaling-stroke"
+              onMouseDown={(e) => onEndpointDown(element.id, 2, e)}
+            />
+          </>
+        )}
+      </g>
+    );
   }
 
   return (
@@ -212,7 +302,8 @@ const SVGElement: React.FC<SVGElementProps> = ({ element, onResizeStart, onEndpo
       <g transform={groupTransform}>
         {renderedElement}
       </g>
-      {element.selected && onResizeStart && localBbox && (
+      {element.selected && onResizeStart && localBbox && 
+       !['curvedLine', 'line'].includes(type) && (
         <ResizeHandles 
           bbox={localBbox}
           transform={groupTransform}

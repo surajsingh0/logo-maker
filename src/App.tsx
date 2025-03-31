@@ -11,7 +11,8 @@ import {
   createEllipse,
   createLine,
   createPolygon,
-  createStar
+  createStar,
+  createCurvedLine
 } from './utils/elementUtils';
 import { LogoElement, Position } from './types';
 import './App.css';
@@ -106,6 +107,18 @@ function App() {
     addElement(createStar(center));
   };
 
+  const handleAddCurvedLine = () => {
+    const start = {
+      x: canvasSettings.width / 2 - 50,
+      y: canvasSettings.height / 2 - 30,
+    };
+    const end = {
+      x: canvasSettings.width / 2 + 50,
+      y: canvasSettings.height / 2 + 30,
+    };
+    addElement(createCurvedLine(start, end));
+  };
+
   const handleElementDrag = (elementId: string, updates: Partial<Pick<LogoElement, 'position' | 'points'>>) => {
     const element = elements.find(el => el.id === elementId);
     if (element) {
@@ -178,6 +191,7 @@ function App() {
         onAddLine={handleAddLine}
         onAddPolygon={handleAddPolygon}
         onAddStar={handleAddStar}
+        onAddCurvedLine={handleAddCurvedLine}
         onUndo={undo}
         onRedo={redo}
         onDelete={handleDelete}

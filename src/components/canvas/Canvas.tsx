@@ -142,7 +142,25 @@ const Canvas: React.FC<CanvasProps> = ({
     
     if (isMovingEndpoint && movingPointInfo) {
       const { elementId, pointIndex } = movingPointInfo;
-      onElementPointUpdate(elementId, pointIndex, currentMousePos);
+      
+      const element = elements.find(el => el.id === elementId);
+      
+      if (element) {
+        if (element.type === 'curvedLine') {
+          const { position, rotation = 0 } = element;
+          const dx = currentMousePos.x - position.x;
+          const dy = currentMousePos.y - position.y;
+          const angleRad = -rotation * (Math.PI / 180);
+          const cosAngle = Math.cos(angleRad);
+          const sinAngle = Math.sin(angleRad);
+          const localX = dx * cosAngle - dy * sinAngle;
+          const localY = dx * sinAngle + dy * cosAngle;
+          const newLocalPosition: Position = { x: localX, y: localY };
+          onElementPointUpdate(elementId, pointIndex, newLocalPosition);
+        } else {
+          onElementPointUpdate(elementId, pointIndex, currentMousePos);
+        }
+      }
     }
     else if (isResizing && resizeHandle && resizeStartState && activeElementId) {
       const { initialElementState, initialMousePos } = resizeStartState;

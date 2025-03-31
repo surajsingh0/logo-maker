@@ -124,6 +124,56 @@ export const createLine = (start: Position, end: Position): LogoElement => {
   };
 };
 
+// Create a new curved line element
+export const createCurvedLine = (start: Position, end: Position): LogoElement => {
+  // Calculate the center point as the position
+  const position = {
+    x: (start.x + end.x) / 2,
+    y: (start.y + end.y) / 2
+  };
+
+  // Convert points to be relative to the position
+  const relativeStart = {
+    x: start.x - position.x,
+    y: start.y - position.y
+  };
+  const relativeEnd = {
+    x: end.x - position.x,
+    y: end.y - position.y
+  };
+
+  // Calculate control point relative to position
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const length = Math.sqrt(dx * dx + dy * dy);
+  const offset = Math.min(50, length / 2);
+
+  // Calculate control point position (perpendicular to line)
+  const relativeControl = {
+    x: -dy * offset / length,
+    y: dx * offset / length
+  };
+
+  return {
+    id: generateId(),
+    type: 'curvedLine',
+    position,
+    points: [
+      relativeStart,
+      relativeControl,
+      relativeEnd
+    ],
+    styles: {
+      fill: 'none',
+      stroke: '#3498db',
+      strokeWidth: 3,
+      opacity: 1,
+    },
+    rotation: 0,
+    selected: false,
+  };
+};
+
 // Create a regular polygon element (e.g., triangle, pentagon)
 export const createPolygon = (position: Position, sides: number = 3, radius: number = 50): LogoElement => {
   return {
@@ -290,6 +340,66 @@ export const isPointInElement = (element: LogoElement, point: Position): boolean
       
       const distSq = (rotatedX - closestX)**2 + (rotatedY - closestY)**2;
       return distSq <= tolerance**2;
+    }
+
+    case 'curvedLine': {
+      const points = element.points || [];
+      if (points.length < 3) return false;
+
+      // Get relative positions of points (since we're already in the rotated coordinate system)
+      const start = points[0];
+      const control = points[1];
+      const end = points[2];
+
+      // Check if point is near any of the control points first
+      const handleRadius = (element.styles.strokeWidth || 2) / 2 + 5;
+      const handleRadiusSq = handleRadius * handleRadius;
+
+      // Check distance to endpoints and control point in rotated space
+      const distToStart = (rotatedX - start.x) ** 2 + (rotatedY - start.y) ** 2;
+      const distToControl = (rotatedX - control.x) ** 2 + (rotatedY - control.y) ** 2;
+      const distToEnd = (rotatedX - end.x) ** 2 + (rotatedY - end.y) ** 2;
+
+      if (distToStart <= handleRadiusSq || distToControl <= handleRadiusSq || distToEnd <= handleRadiusSq) {
+        return true;
+      }
+
+      // Approximate curve with line segments for hit testing
+      const numSegments = 10;
+      const tolerance = (element.styles.strokeWidth || 2) + 4;
+      const toleranceSq = tolerance * tolerance;
+
+      for (let i = 0; i < numSegments; i++) {
+        const t1 = i / numSegments;
+        const t2 = (i + 1) / numSegments;
+
+        // Calculate points on curve using quadratic Bezier formula (in relative coordinates)
+        const p1 = {
+          x: (1 - t1) * (1 - t1) * start.x + 2 * (1 - t1) * t1 * control.x + t1 * t1 * end.x,
+          y: (1 - t1) * (1 - t1) * start.y + 2 * (1 - t1) * t1 * control.y + t1 * t1 * end.y
+        };
+        const p2 = {
+          x: (1 - t2) * (1 - t2) * start.x + 2 * (1 - t2) * t2 * control.x + t2 * t2 * end.x,
+          y: (1 - t2) * (1 - t2) * start.y + 2 * (1 - t2) * t2 * control.y + t2 * t2 * end.y
+        };
+
+        // Check distance to line segment
+        const lenSq = (p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2;
+        if (lenSq === 0) continue;
+
+        let t = ((rotatedX - p1.x) * (p2.x - p1.x) + (rotatedY - p1.y) * (p2.y - p1.y)) / lenSq;
+        t = Math.max(0, Math.min(1, t));
+
+        const projX = p1.x + t * (p2.x - p1.x);
+        const projY = p1.y + t * (p2.y - p1.y);
+        const distSq = (rotatedX - projX) ** 2 + (rotatedY - projY) ** 2;
+
+        if (distSq <= toleranceSq) {
+          return true;
+        }
+      }
+
+      return false;
     }
 
     case 'text': {
