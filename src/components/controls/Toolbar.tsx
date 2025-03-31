@@ -11,6 +11,7 @@ interface ToolbarProps {
   onAddStar: () => void;
   onAddCurvedLine: () => void;
   onAddHexagon: () => void;
+  onAddArrow: () => void;
   onUndo: () => void;
   onRedo: () => void;
   onDelete: () => void;
@@ -36,6 +37,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
   onAddStar,
   onAddCurvedLine,
   onAddHexagon,
+  onAddArrow,
   onUndo,
   onRedo,
   onDelete,
@@ -129,6 +131,15 @@ const Toolbar: React.FC<ToolbarProps> = ({
               </svg>
             </i>
             <span>Curve</span>
+          </button>
+
+          <button 
+            className="toolbar-button" 
+            onClick={onAddArrow}
+            title="Add Arrow"
+          >
+            <i className="icon">➔</i>
+            <span>Arrow</span>
           </button>
         </div>
       </div>

@@ -210,6 +210,35 @@ export const generateSvgString = (state: LogoState): string => {
           />`;
         }
         break;
+
+      case 'arrow':
+        if (element.points && element.points.length >= 2) {
+          const [start, end] = element.points;
+          const arrowHeadSize = element.arrowHeadSize || 15;
+
+          // Calculate arrow head points
+          const dx = end.x - start.x;
+          const dy = end.y - start.y;
+          const angle = Math.atan2(dy, dx);
+
+          const arrowHead1 = {
+            x: end.x - arrowHeadSize * Math.cos(angle - Math.PI / 6),
+            y: end.y - arrowHeadSize * Math.sin(angle - Math.PI / 6)
+          };
+          const arrowHead2 = {
+            x: end.x - arrowHeadSize * Math.cos(angle + Math.PI / 6),
+            y: end.y - arrowHeadSize * Math.sin(angle + Math.PI / 6)
+          };
+
+          svgContent += `<path 
+            d="M ${start.x} ${start.y} L ${end.x} ${end.y} M ${arrowHead1.x} ${arrowHead1.y} L ${end.x} ${end.y} L ${arrowHead2.x} ${arrowHead2.y}"
+            fill="none"
+            stroke="${element.styles.stroke}" 
+            stroke-width="${element.styles.strokeWidth}" 
+            opacity="${element.styles.opacity}" 
+          />`;
+        }
+        break;
     }
   });
 

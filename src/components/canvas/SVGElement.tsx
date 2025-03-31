@@ -232,6 +232,73 @@ const SVGElement: React.FC<SVGElementProps> = ({ element, onResizeStart, onEndpo
     );
   }
 
+  if (type === 'arrow') {
+    const points = element.points || [];
+    if (points.length < 2) return null;
+    const [start, end] = points;
+    const arrowHeadSize = element.arrowHeadSize || 15;
+
+    // Calculate arrow head points
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const angle = Math.atan2(dy, dx);
+
+    const arrowHead1 = {
+      x: end.x - arrowHeadSize * Math.cos(angle - Math.PI / 6),
+      y: end.y - arrowHeadSize * Math.sin(angle - Math.PI / 6)
+    };
+    const arrowHead2 = {
+      x: end.x - arrowHeadSize * Math.cos(angle + Math.PI / 6),
+      y: end.y - arrowHeadSize * Math.sin(angle + Math.PI / 6)
+    };
+
+    const lineTransform = `rotate(${rotation} ${position.x} ${position.y})`;
+    const handleRadius = 6;
+
+    return (
+      <g>
+        <path
+          ref={elementRef as React.RefObject<SVGPathElement>}
+          d={`M ${start.x} ${start.y} L ${end.x} ${end.y} M ${arrowHead1.x} ${arrowHead1.y} L ${end.x} ${end.y} L ${arrowHead2.x} ${arrowHead2.y}`}
+          fill="none"
+          stroke={stroke}
+          strokeWidth={element.selected ? strokeWidth + 1 : strokeWidth}
+          strokeDasharray={element.selected ? '4 2' : undefined}
+          opacity={opacity}
+          transform={lineTransform}
+        />
+        {element.selected && onEndpointDown && (
+          <>
+            <circle
+              className="resize-handle nw corner"
+              cx={start.x}
+              cy={start.y}
+              r={handleRadius}
+              fill="white"
+              stroke="#2196f3"
+              strokeWidth={1.5}
+              vectorEffect="non-scaling-stroke"
+              transform={lineTransform}
+              onMouseDown={(e) => onEndpointDown(element.id, 0, e)}
+            />
+            <circle
+              className="resize-handle se corner"
+              cx={end.x}
+              cy={end.y}
+              r={handleRadius}
+              fill="white"
+              stroke="#2196f3"
+              strokeWidth={1.5}
+              vectorEffect="non-scaling-stroke"
+              transform={lineTransform}
+              onMouseDown={(e) => onEndpointDown(element.id, 1, e)}
+            />
+          </>
+        )}
+      </g>
+    );
+  }
+
   if (type === 'curvedLine') {
     const points = element.points || [];
     if (points.length < 3) return null;

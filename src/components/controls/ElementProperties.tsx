@@ -288,6 +288,24 @@ const ElementProperties: React.FC<ElementPropertiesProps> = ({
         </div>
       );
       break;
+
+    case 'arrow':
+      specificControls = (
+        <div className="property-group">
+          <h4>Arrow Properties</h4>
+          <div className="property-row">
+            <label>Arrow Head Size:</label>
+            <input
+              type="number"
+              min="5"
+              max="50"
+              value={element.arrowHeadSize || 15}
+              onChange={(e) => handleChange('arrowHeadSize', parseFloat(e.target.value))}
+            />
+          </div>
+        </div>
+      );
+      break;
   }
 
   return (

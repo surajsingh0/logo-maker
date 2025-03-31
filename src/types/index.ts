@@ -26,7 +26,8 @@ export type ElementType =
   | 'polygon'
   | 'star'
   | 'curvedLine'
-  | 'hexagon';
+  | 'hexagon'
+  | 'arrow';
 
 // Define the base structure for all logo elements
 export interface LogoElement {
@@ -50,6 +51,7 @@ export interface LogoElement {
   outerRadius?: number;
   innerRadius?: number;
   numPoints?: number;
+  arrowHeadSize?: number;
 }
 
 export interface CanvasSettings {

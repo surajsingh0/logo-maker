@@ -13,7 +13,8 @@ import {
   createPolygon,
   createStar,
   createCurvedLine,
-  createHexagon
+  createHexagon,
+  createArrow
 } from './utils/elementUtils';
 import { LogoElement, Position } from './types';
 import './App.css';
@@ -128,6 +129,18 @@ function App() {
     addElement(createHexagon(center));
   };
 
+  const handleAddArrow = () => {
+    const start = {
+      x: canvasSettings.width / 2 - 50,
+      y: canvasSettings.height / 2 - 30,
+    };
+    const end = {
+      x: canvasSettings.width / 2 + 50,
+      y: canvasSettings.height / 2 + 30,
+    };
+    addElement(createArrow(start, end));
+  };
+
   const handleElementDrag = (elementId: string, updates: Partial<Pick<LogoElement, 'position' | 'points'>>) => {
     const element = elements.find(el => el.id === elementId);
     if (element) {
@@ -202,6 +215,7 @@ function App() {
         onAddStar={handleAddStar}
         onAddCurvedLine={handleAddCurvedLine}
         onAddHexagon={handleAddHexagon}
+        onAddArrow={handleAddArrow}
         onUndo={undo}
         onRedo={redo}
         onDelete={handleDelete}

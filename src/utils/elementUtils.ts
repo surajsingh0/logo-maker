@@ -1,6 +1,40 @@
 import { LogoElement, Position } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 
+// Helper function to calculate distance from point to line segment
+const distanceToLine = (px: number, py: number, x1: number, y1: number, x2: number, y2: number): number => {
+  const A = px - x1;
+  const B = py - y1;
+  const C = x2 - x1;
+  const D = y2 - y1;
+
+  const dot = A * C + B * D;
+  const lenSq = C * C + D * D;
+  let param = -1;
+
+  if (lenSq !== 0) {
+    param = dot / lenSq;
+  }
+
+  let xx, yy;
+
+  if (param < 0) {
+    xx = x1;
+    yy = y1;
+  } else if (param > 1) {
+    xx = x2;
+    yy = y2;
+  } else {
+    xx = x1 + param * C;
+    yy = y1 + param * D;
+  }
+
+  const dx = px - xx;
+  const dy = py - yy;
+
+  return Math.sqrt(dx * dx + dy * dy);
+};
+
 // Generate a unique ID for new elements
 export const generateId = (): string => {
   return uuidv4();
@@ -231,6 +265,25 @@ export const createHexagon = (position: Position, radius: number = 50): LogoElem
   };
 };
 
+// Create a new arrow element
+export const createArrow = (start: Position, end: Position): LogoElement => {
+  return {
+    id: generateId(),
+    type: 'arrow',
+    position: { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 },
+    points: [start, end],
+    arrowHeadSize: 15,
+    styles: {
+      fill: 'none',
+      stroke: '#2196f3',
+      strokeWidth: 3,
+      opacity: 1,
+    },
+    rotation: 0,
+    selected: false,
+  };
+};
+
 // Calculate element bounds (useful for selection and transformations)
 export const getElementBounds = (element: LogoElement): { top: number; left: number; right: number; bottom: number } => {
   const { position, type } = element;
@@ -358,6 +411,52 @@ export const isPointInElement = (element: LogoElement, point: Position): boolean
       
       const distSq = (rotatedX - closestX)**2 + (rotatedY - closestY)**2;
       return distSq <= tolerance**2;
+    }
+
+    case 'arrow': {
+      const points = element.points || [];
+      if (points.length < 2) return false;
+      const [start, end] = points;
+      const tolerance = (element.styles.strokeWidth || 2) / 2 + 2;
+
+      // Calculate relative points for un-rotated check
+      const relStartX = start.x - cx;
+      const relStartY = start.y - cy;
+      const relEndX = end.x - cx;
+      const relEndY = end.y - cy;
+
+      // Check main line
+      const lenSq = (relEndX - relStartX)**2 + (relEndY - relStartY)**2;
+      if (lenSq === 0) return (rotatedX - relStartX)**2 + (rotatedY - relStartY)**2 <= tolerance**2;
+
+      let t = ((rotatedX - relStartX) * (relEndX - relStartX) + (rotatedY - relStartY) * (relEndY - relStartY)) / lenSq;
+      t = Math.max(0, Math.min(1, t));
+
+      const closestX = relStartX + t * (relEndX - relStartX);
+      const closestY = relStartY + t * (relEndY - relStartY);
+      const distSq = (rotatedX - closestX)**2 + (rotatedY - closestY)**2;
+
+      // Check arrow head
+      const arrowHeadSize = element.arrowHeadSize || 15;
+      const angle = Math.atan2(relEndY - relStartY, relEndX - relStartX);
+      const arrowHead1X = relEndX - arrowHeadSize * Math.cos(angle - Math.PI / 6);
+      const arrowHead1Y = relEndY - arrowHeadSize * Math.sin(angle - Math.PI / 6);
+      const arrowHead2X = relEndX - arrowHeadSize * Math.cos(angle + Math.PI / 6);
+      const arrowHead2Y = relEndY - arrowHeadSize * Math.sin(angle + Math.PI / 6);
+
+      // Check distance to arrow head lines
+      const distToHead1 = distanceToLine(
+        rotatedX, rotatedY,
+        relEndX, relEndY,
+        arrowHead1X, arrowHead1Y
+      );
+      const distToHead2 = distanceToLine(
+        rotatedX, rotatedY,
+        relEndX, relEndY,
+        arrowHead2X, arrowHead2Y
+      );
+
+      return distSq <= tolerance**2 || distToHead1 <= tolerance || distToHead2 <= tolerance;
     }
 
     case 'curvedLine': {

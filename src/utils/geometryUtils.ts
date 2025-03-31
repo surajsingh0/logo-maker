@@ -92,13 +92,14 @@ export function calculateElementBoundingBox(element: LogoElement): BoundingBox |
     }
 
     case 'line':
+    case 'arrow':
     case 'path':
     case 'polygon':
     case 'star':
     case 'hexagon': {
       // Calculate points as done in exportUtils (absolute coordinates)
       let points: Position[] = [];
-      if (element.type === 'line' || element.type === 'path') {
+      if (element.type === 'line' || element.type === 'arrow' || element.type === 'path') {
          points = element.points || []; // Assume points are absolute
       }
       else if (element.type === 'polygon') {

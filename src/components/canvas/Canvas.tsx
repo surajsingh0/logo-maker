@@ -99,7 +99,7 @@ const Canvas: React.FC<CanvasProps> = ({
 
   const handleResizeStart = (handle: string, event: React.MouseEvent) => {
     const element = elements.find(el => el.id === activeElementId);
-    if (!element || element.type === 'line') return;
+    if (!element || element.type === 'line' || element.type === 'arrow') return;
 
     const initialCanvasMousePos = getCanvasCoordinates(event);
 
@@ -177,6 +177,18 @@ const Canvas: React.FC<CanvasProps> = ({
       };
 
       switch (initialElementState.type) {
+        case 'arrow': {
+          // Handle arrow resizing similar to line endpoints
+          const { points } = initialElementState;
+          if (!points || points.length < 2) break;
+          
+          const pointIndex = resizeHandle === 'start' ? 0 : 1;
+          const newPoints = [...points];
+          newPoints[pointIndex] = currentMousePos;
+          
+          update = { points: newPoints };
+          break;
+        }
         case 'rectangle': { 
           const { position: initialPosition, dimensions: initialDimensions } = initialElementState;
           if (!initialDimensions) break;
@@ -297,7 +309,7 @@ const Canvas: React.FC<CanvasProps> = ({
       const dx = currentMousePos.x - dragStartPos.x;
       const dy = currentMousePos.y - dragStartPos.y;
 
-      if (selectedElement.type === 'line' && selectedElement.points) {
+      if ((selectedElement.type === 'line' || selectedElement.type === 'arrow') && selectedElement.points) {
         const newPoints = selectedElement.points.map(point => ({
           x: point.x + dx,
           y: point.y + dy
