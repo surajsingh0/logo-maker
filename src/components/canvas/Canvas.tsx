@@ -107,17 +107,18 @@ const Canvas: React.FC<CanvasProps> = ({
 
   const handleResizeStart = (handle: string, event: React.MouseEvent) => {
     const element = elements.find(el => el.id === activeElementId);
-    if (!element || element.type === 'line' || element.type === 'arrow' || element.locked) return;
+    if (!element || element.locked || ['line', 'arrow', 'curvedLine'].includes(element.type)) return;
 
     const initialCanvasMousePos = getCanvasCoordinates(event);
-
     setIsResizing(true);
     setResizeHandle(handle);
-    setResizeStartState({
-      initialElementState: { ...element },
-      initialMousePos: initialCanvasMousePos,
-    });
     setIsDragging(false);
+    setIsMovingEndpoint(false);
+
+    setResizeStartState({
+        initialElementState: { ...element },
+        initialMousePos: initialCanvasMousePos
+    });
   };
 
   const handleEndpointDown = (elementId: string, pointIndex: number, event: React.MouseEvent) => {
@@ -239,249 +240,208 @@ const Canvas: React.FC<CanvasProps> = ({
     }
     else if (isResizing && resizeHandle && resizeStartState && activeElementId) {
       const { initialElementState, initialMousePos } = resizeStartState;
-      const dx = currentMousePos.x - initialMousePos.x;
-      const dy = currentMousePos.y - initialMousePos.y;
+      const initialCenter = initialElementState.position;
+      const rotation = initialElementState.rotation || 0;
+
+      const dx = currentMousePos.x - initialCenter.x;
+      const dy = currentMousePos.y - initialCenter.y;
 
       let update: Partial<LogoElement> = {};
+      let potentialElementState: LogoElement | null = null;
 
-      const calculateDistanceChange = (handle: string, dx: number, dy: number): number => {
-         if (handle.includes('w') || handle.includes('n')) {
-           return -Math.max(Math.abs(dx), Math.abs(dy));
-         }
-         return Math.max(Math.abs(dx), Math.abs(dy));
-      };
+      const angleRad = -rotation * (Math.PI / 180);
+      const cos = Math.cos(angleRad);
+      const sin = Math.sin(angleRad);
+      const rotatedX = dx * cos - dy * sin;
+      const rotatedY = dx * sin + dy * cos;
 
       switch (initialElementState.type) {
-        case 'arrow': {
-          // Handle arrow resizing similar to line endpoints
+        case 'rectangle': {
+            const initialDimensions = initialElementState.dimensions;
+            if (!initialDimensions) break;
+            let newWidth = initialDimensions.width;
+            let newHeight = initialDimensions.height;
+            if (resizeHandle.includes('e') || resizeHandle.includes('w')) {
+                newWidth = Math.max(10, 2 * Math.abs(rotatedX));
+            }
+            if (resizeHandle.includes('n') || resizeHandle.includes('s')) {
+                newHeight = Math.max(10, 2 * Math.abs(rotatedY));
+            }
+            newWidth = Math.max(10, newWidth);
+            newHeight = Math.max(10, newHeight);
+            update = { dimensions: { width: newWidth, height: newHeight } };
+            break;
+        }
+        case 'ellipse': {
+            const newRx = Math.max(5, Math.abs(rotatedX));
+            const newRy = Math.max(5, Math.abs(rotatedY));
+            update = { rx: newRx, ry: newRy };
+            break;
+        }
+        case 'circle': {
+            const newRadius = Math.max(5, Math.max(Math.abs(dx), Math.abs(dy)));
+            update = { radius: newRadius };
+            break;
+        }
+        case 'polygon':
+        case 'hexagon':
+        case 'pentagon':
+        case 'octagonStar': {
+            const newRadius = Math.max(5, Math.max(Math.abs(dx), Math.abs(dy)));
+            update = { radius: newRadius };
+            break;
+        }
+        case 'star': {
+            const newOuterRadius = Math.max(5, Math.max(Math.abs(dx), Math.abs(dy)));
+            let newInnerRadius = initialElementState.innerRadius || 0;
+            const initialOuterRadius = initialElementState.outerRadius || 0;
+            if (initialOuterRadius > 0 && newInnerRadius > 0) { 
+                const ratio = newInnerRadius / initialOuterRadius;
+                newInnerRadius = Math.max(2, newOuterRadius * ratio);
+            }
+            update = { outerRadius: newOuterRadius, innerRadius: newInnerRadius };
+            break;
+        }
+        case 'text': {
+            const dx_delta = currentMousePos.x - initialMousePos.x;
+            const dy_delta = currentMousePos.y - initialMousePos.y;
+            const { fontSize: initialFontSize = 16 } = initialElementState;
+            const delta = (Math.abs(dx_delta) > Math.abs(dy_delta) ? dx_delta : dy_delta);
+            let scaleFactor = 0;
+            if (resizeHandle.includes('s') || resizeHandle.includes('e')) scaleFactor = delta;
+            else if (resizeHandle.includes('n') || resizeHandle.includes('w')) scaleFactor = -delta;
+            const sensitivity = 0.5;
+            let newFontSize = initialFontSize + (scaleFactor * sensitivity);
+            newFontSize = Math.max(8, newFontSize);
+            update = { fontSize: newFontSize };
+            break;
+        }
+        case 'arrow': { 
           const { points } = initialElementState;
           if (!points || points.length < 2) break;
           
-          const pointIndex = resizeHandle === 'start' ? 0 : 1;
+          const pointIndex = resizeHandle === 'start' ? 0 : 1; 
+          
           const newPoints = [...points];
-          newPoints[pointIndex] = currentMousePos;
+          newPoints[pointIndex] = currentMousePos; 
           
           update = { points: newPoints };
           break;
         }
         case 'cloud': {
-          const { position: initialPosition, dimensions: initialDimensions } = initialElementState;
-          if (!initialDimensions) break;
+          const { position: initialPosition, dimensions: initialDimensions, pathData: initialPathData } = initialElementState;
+          if (!initialDimensions || !initialPathData) break;
+
+          const dx_delta = currentMousePos.x - initialMousePos.x;
+          const dy_delta = currentMousePos.y - initialMousePos.y;
+
           let newX = initialPosition.x;
           let newY = initialPosition.y;
           let newWidth = initialDimensions.width;
           let newHeight = initialDimensions.height;
 
           if (resizeHandle.includes('e')) {
-            newWidth = Math.max(10, initialDimensions.width + dx);
+            newWidth = Math.max(10, initialDimensions.width + dx_delta);
           } else if (resizeHandle.includes('w')) {
-            const calculatedWidth = Math.max(10, initialDimensions.width - dx);
+            const calculatedWidth = Math.max(10, initialDimensions.width - dx_delta);
             newX = initialPosition.x + (initialDimensions.width - calculatedWidth);
             newWidth = calculatedWidth;
           }
           if (resizeHandle.includes('s')) {
-            newHeight = Math.max(10, initialDimensions.height + dy);
+            newHeight = Math.max(10, initialDimensions.height + dy_delta);
           } else if (resizeHandle.includes('n')) {
-            const calculatedHeight = Math.max(10, initialDimensions.height - dy);
+            const calculatedHeight = Math.max(10, initialDimensions.height - dy_delta);
             newY = initialPosition.y + (initialDimensions.height - calculatedHeight);
             newHeight = calculatedHeight;
           }
 
-          // Scale the path data while preserving commands
-          const scaleX = newWidth / initialDimensions.width;
-          const scaleY = newHeight / initialDimensions.height;
+          const scaleX = initialDimensions.width === 0 ? 1 : newWidth / initialDimensions.width;
+          const scaleY = initialDimensions.height === 0 ? 1 : newHeight / initialDimensions.height;
           
-          const pathCommands = initialElementState.pathData?.match(/[A-Z][^A-Za-z]*/g) || [];
+          const pathCommands = initialPathData.match(/[A-Z][^A-Za-z]*/g) || [];
           const scaledCommands = pathCommands.map(cmd => {
             const command = cmd[0];
             const coords = cmd.slice(1).trim().split(/[\s,]+/).map(Number);
             
-            // Scale coordinates based on command type
             switch (command) {
-              case 'M': // Move to
-              case 'L': // Line to
+              case 'M': case 'L':
                 return `${command}${coords[0] * scaleX} ${coords[1] * scaleY}`;
-              case 'C': // Cubic bezier
+              case 'C':
                 return `${command}${coords[0] * scaleX} ${coords[1] * scaleY} ${coords[2] * scaleX} ${coords[3] * scaleY} ${coords[4] * scaleX} ${coords[5] * scaleY}`;
-              default:
-                return cmd;
+              default: return cmd;
             }
           });
 
-          update = { 
+          update = {
             position: { x: newX, y: newY }, 
             dimensions: { width: newWidth, height: newHeight },
             pathData: scaledCommands.join(' ')
           };
           break;
         }
-        case 'rectangle': { 
+        case 'blockArrow': {
           const { position: initialPosition, dimensions: initialDimensions } = initialElementState;
           if (!initialDimensions) break;
-          let newX = initialPosition.x;
-          let newY = initialPosition.y;
+
+          // Calculate delta from the initial mouse position in rotated space
+          const angleRad = -(initialElementState.rotation || 0) * (Math.PI / 180);
+          const cos = Math.cos(angleRad);
+          const sin = Math.sin(angleRad);
+          
+          // Transform the mouse movement into the rotated space
+          const dx_rotated = (currentMousePos.x - initialMousePos.x) * cos - (currentMousePos.y - initialMousePos.y) * sin;
+          const dy_rotated = (currentMousePos.x - initialMousePos.x) * sin + (currentMousePos.y - initialMousePos.y) * cos;
+
           let newWidth = initialDimensions.width;
           let newHeight = initialDimensions.height;
 
+          // Apply deltas based on handle in rotated space
           if (resizeHandle.includes('e')) {
-            newWidth = Math.max(10, initialDimensions.width + dx);
+            newWidth = Math.max(20, initialDimensions.width + dx_rotated * 2);
           } else if (resizeHandle.includes('w')) {
-            const calculatedWidth = Math.max(10, initialDimensions.width - dx);
-            newX = initialPosition.x + (initialDimensions.width - calculatedWidth);
-            newWidth = calculatedWidth;
+            newWidth = Math.max(20, initialDimensions.width - dx_rotated * 2);
           }
           if (resizeHandle.includes('s')) {
-            newHeight = Math.max(10, initialDimensions.height + dy);
+            newHeight = Math.max(10, initialDimensions.height + dy_rotated * 2);
           } else if (resizeHandle.includes('n')) {
-            const calculatedHeight = Math.max(10, initialDimensions.height - dy);
-            newY = initialPosition.y + (initialDimensions.height - calculatedHeight);
-            newHeight = calculatedHeight;
+            newHeight = Math.max(10, initialDimensions.height - dy_rotated * 2);
           }
-          update = { position: { x: newX, y: newY }, dimensions: { width: newWidth, height: newHeight } };
+
+          // Calculate points relative to center
+          const headWidth = newHeight; // Head width equals height
+          const bodyWidth = Math.max(0, newWidth - headWidth);
+          const bodyHeight = newHeight * 0.6;
+          
+          const newPoints = [
+            { x: -newWidth/2, y: -bodyHeight/2 }, // Body start top
+            { x: -newWidth/2 + bodyWidth, y: -bodyHeight/2 }, // Body end top
+            { x: -newWidth/2 + bodyWidth, y: -newHeight/2 }, // Head start top
+            { x: newWidth/2, y: 0 }, // Head point
+            { x: -newWidth/2 + bodyWidth, y: newHeight/2 }, // Head start bottom
+            { x: -newWidth/2 + bodyWidth, y: bodyHeight/2 }, // Body end bottom
+            { x: -newWidth/2, y: bodyHeight/2 }, // Body start bottom
+          ];
+
+          update = { 
+            dimensions: { width: newWidth, height: newHeight },
+            points: newPoints
+          };
           break;
         }
-        case 'circle': { 
-           const { radius: initialRadius = 0 } = initialElementState;
-           const delta = calculateDistanceChange(resizeHandle, dx, dy);
-           const newRadius = Math.max(5, initialRadius + delta);
-           update = { radius: newRadius };
-           break;
-        }
-        case 'ellipse': { 
-           const { rx: initialRx = 0, ry: initialRy = 0, position: initialPosition } = initialElementState;
-           let newRx = initialRx;
-           let newRy = initialRy;
-           let newX = initialPosition.x;
-           let newY = initialPosition.y;
-
-           if (resizeHandle.includes('e')) {
-              newRx = Math.max(5, initialRx + dx);
-           } else if (resizeHandle.includes('w')) {
-              newRx = Math.max(5, initialRx - dx);
-              newX = initialPosition.x + dx; 
-           }
-           if (resizeHandle.includes('s')) {
-              newRy = Math.max(5, initialRy + dy);
-           } else if (resizeHandle.includes('n')) {
-              newRy = Math.max(5, initialRy - dy);
-              newY = initialPosition.y + dy; 
-           }
-           update = { position: { x: newX, y: newY }, rx: newRx, ry: newRy };
-           break;
-        }
-         case 'polygon': {
-           const { radius: initialRadius = 0 } = initialElementState;
-           const delta = calculateDistanceChange(resizeHandle, dx, dy);
-           const newRadius = Math.max(5, initialRadius + delta);
-           update = { radius: newRadius };
-           break;
-         }
-         case 'star': { 
-           const { outerRadius: initialOuterRadius = 0, innerRadius: initialInnerRadius = 0 } = initialElementState;
-           if (initialOuterRadius === 0) break;
-           const delta = calculateDistanceChange(resizeHandle, dx, dy);
-           const newOuterRadius = Math.max(5, initialOuterRadius + delta);
-           const ratio = initialInnerRadius / initialOuterRadius;
-           const newInnerRadius = Math.max(2, newOuterRadius * ratio); 
-           update = { outerRadius: newOuterRadius, innerRadius: newInnerRadius };
-           break;
-         }
-         case 'hexagon': {
-           const { radius: initialRadius = 0 } = initialElementState;
-           const delta = calculateDistanceChange(resizeHandle, dx, dy);
-           const newRadius = Math.max(5, initialRadius + delta);
-           update = { radius: newRadius };
-           break;
-         }
-         case 'pentagon': {
-           const { radius: initialRadius = 0 } = initialElementState;
-           const delta = calculateDistanceChange(resizeHandle, dx, dy);
-           const newRadius = Math.max(5, initialRadius + delta);
-           update = { radius: newRadius };
-           break;
-         }
-         case 'octagonStar': {
-           const { radius: initialRadius = 0 } = initialElementState;
-           const delta = calculateDistanceChange(resizeHandle, dx, dy);
-           const newRadius = Math.max(5, initialRadius + delta);
-           update = { radius: newRadius };
-           break;
-         }
-         case 'blockArrow': { 
-           const { position: initialPosition, dimensions: initialDimensions } = initialElementState;
-           if (!initialDimensions) break;
-           let newX = initialPosition.x;
-           let newY = initialPosition.y;
-           let newWidth = initialDimensions.width;
-           let newHeight = initialDimensions.height;
-
-           if (resizeHandle.includes('e')) {
-             newWidth = Math.max(10, initialDimensions.width + dx);
-           } else if (resizeHandle.includes('w')) {
-             const calculatedWidth = Math.max(10, initialDimensions.width - dx);
-             newX = initialPosition.x + (initialDimensions.width - calculatedWidth);
-             newWidth = calculatedWidth;
-           }
-           if (resizeHandle.includes('s')) {
-             newHeight = Math.max(10, initialDimensions.height + dy);
-           } else if (resizeHandle.includes('n')) {
-             const calculatedHeight = Math.max(10, initialDimensions.height - dy);
-             newY = initialPosition.y + (initialDimensions.height - calculatedHeight);
-             newHeight = calculatedHeight;
-           }
-
-           // Recalculate points for the block arrow shape
-           const headWidth = newHeight; // Arrow head is as wide as the height
-           const bodyWidth = newWidth - headWidth;
-           const bodyHeight = newHeight * 0.6; // Body is 60% of total height
-           const yOffset = (newHeight - bodyHeight) / 2;
-
-           const points = [
-             { x: 0, y: yOffset }, // Body start top
-             { x: bodyWidth, y: yOffset }, // Body end top
-             { x: bodyWidth, y: 0 }, // Head start top
-             { x: newWidth, y: newHeight / 2 }, // Head point
-             { x: bodyWidth, y: newHeight }, // Head start bottom
-             { x: bodyWidth, y: yOffset + bodyHeight }, // Body end bottom
-             { x: 0, y: yOffset + bodyHeight }, // Body start bottom
-           ];
-
-           update = { 
-             position: { x: newX, y: newY }, 
-             dimensions: { width: newWidth, height: newHeight },
-             points
-           };
-           break;
-         }
-         case 'text': {
-           const { fontSize: initialFontSize = 16 } = initialElementState;
-           const delta = Math.abs(dx) > Math.abs(dy) ? dx : dy;
-           let scaleFactor = 0;
-
-           if (resizeHandle.includes('s') || resizeHandle.includes('e')) {
-              scaleFactor = delta;
-           } else if (resizeHandle.includes('n') || resizeHandle.includes('w')) {
-              scaleFactor = -delta;
-           }
-           
-           const sensitivity = 0.5; 
-           let newFontSize = initialFontSize + (scaleFactor * sensitivity);
-
-           newFontSize = Math.max(8, newFontSize);
-           update = { fontSize: newFontSize };
-           break;
-         }
-        default: 
-          break; 
+         default:
+            console.warn("Resize logic not fully implemented for type:", initialElementState.type);
+            break;
       }
 
       if (Object.keys(update).length > 0) {
-         const potentialElementState = { ...initialElementState, ...update };
-         const potentialBounds = getElementBounds(potentialElementState);
-         calculateAndSetGuides(activeElementId, potentialBounds);
-         onElementResize(activeElementId, update);
+          const currentElement = elements.find(el => el.id === activeElementId);
+          if(currentElement){
+             potentialElementState = { ...currentElement, ...update };
+             const potentialBounds = getElementBounds(potentialElementState);
+             calculateAndSetGuides(activeElementId, potentialBounds);
+             onElementResize(activeElementId, update);
+          }
       }
-
     }
     else if (isDraggingMultiple) {
       const dx = currentMousePos.x - dragStartPos.x;

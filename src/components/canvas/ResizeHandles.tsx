@@ -3,6 +3,15 @@ import './ResizeHandles.css';
 
 type HandlePosition = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 
+// Define minimum sizes for different element types
+export const MIN_SIZES = {
+  DEFAULT: { width: 10, height: 10 },
+  TEXT: { width: 20, height: 20 },
+  LINE: { length: 10 },
+  CIRCLE: { radius: 5 },
+  ELLIPSE: { rx: 5, ry: 5 },
+};
+
 // Define the expected bounds structure
 export interface ElementBounds {
   x: number;
@@ -12,17 +21,18 @@ export interface ElementBounds {
 }
 
 interface ResizeHandlesProps {
-  bbox: DOMRect; // Accept the raw DOMRect from getBBox()
-  transform: string; // Accept the transform string applied to the element
+  bbox: DOMRect;
+  transform: string;
+  elementType: string;
   onResizeStart: (handle: HandlePosition, event: React.MouseEvent) => void;
 }
 
-const ResizeHandles: React.FC<ResizeHandlesProps> = ({ bbox, transform, onResizeStart }) => {
-  
-  if (!bbox) return null; 
+const ResizeHandles: React.FC<ResizeHandlesProps> = ({ bbox, transform, elementType, onResizeStart }) => {
+  if (!bbox) return null;
 
-  const { x, y, width, height } = bbox; 
+  const { x, y, width, height } = bbox;
   
+  // Calculate handle positions based on bbox
   const handles: { position: HandlePosition; x: number; y: number; isCorner: boolean }[] = [
     { position: 'nw', x: x, y: y, isCorner: true },
     { position: 'ne', x: x + width, y: y, isCorner: true },
@@ -35,13 +45,37 @@ const ResizeHandles: React.FC<ResizeHandlesProps> = ({ bbox, transform, onResize
   ];
 
   const handleMouseDown = (e: React.MouseEvent, handle: HandlePosition) => {
-    e.stopPropagation(); 
+    e.stopPropagation();
     onResizeStart(handle, e);
   };
 
+  // Get visible handles based on element type
+  const getVisibleHandles = () => {
+    switch (elementType) {
+      case 'circle':
+        return handles.filter(h => h.isCorner);
+      case 'ellipse':
+        return handles;
+      case 'text':
+        return handles;
+      case 'blockArrow':
+      case 'cloud':
+        // Show all handles for block arrows and clouds
+        return handles;
+      case 'line':
+      case 'arrow':
+      case 'curvedLine':
+        return [];
+      default:
+        return handles;
+    }
+  };
+
+  const visibleHandles = getVisibleHandles();
+
   return (
     <g className="resize-handles" transform={transform}>
-      {handles.map(({ position, x, y, isCorner }) => (
+      {visibleHandles.map(({ position, x, y, isCorner }) => (
         <circle
           key={position}
           className={`resize-handle ${position} ${isCorner ? 'corner' : ''}`}

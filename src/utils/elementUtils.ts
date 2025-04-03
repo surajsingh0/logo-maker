@@ -1,5 +1,6 @@
 import { LogoElement, Position } from '../types';
 import { v4 as uuidv4 } from 'uuid';
+import { MIN_SIZES } from '../components/canvas/ResizeHandles';
 
 // Helper function to calculate distance from point to line segment
 const distanceToLine = (px: number, py: number, x1: number, y1: number, x2: number, y2: number): number => {
@@ -329,31 +330,33 @@ export const createOctagonStar = (position: Position, radius: number = 50): Logo
   };
 };
 
-// Create a block arrow element
-export const createBlockArrow = (position: Position): LogoElement => {
-  const width = 120;
-  const height = 60;
+// Helper function to calculate block arrow points
+const calculateBlockArrowPoints = (width: number, height: number): Position[] => {
   const headWidth = height; // Arrow head is as wide as the height
   const bodyWidth = width - headWidth;
   const bodyHeight = height * 0.6; // Body is 60% of total height
-  const yOffset = (height - bodyHeight) / 2;
-
-  // Calculate points for the block arrow shape
-  const points = [
-    { x: 0, y: yOffset }, // Body start top
-    { x: bodyWidth, y: yOffset }, // Body end top
-    { x: bodyWidth, y: 0 }, // Head start top
-    { x: width, y: height / 2 }, // Head point
-    { x: bodyWidth, y: height }, // Head start bottom
-    { x: bodyWidth, y: yOffset + bodyHeight }, // Body end bottom
-    { x: 0, y: yOffset + bodyHeight }, // Body start bottom
+  
+  // Calculate points relative to center (0,0)
+  return [
+    { x: -width/2, y: -bodyHeight/2 }, // Body start top
+    { x: -width/2 + bodyWidth, y: -bodyHeight/2 }, // Body end top
+    { x: -width/2 + bodyWidth, y: -height/2 }, // Head start top
+    { x: width/2, y: 0 }, // Head point
+    { x: -width/2 + bodyWidth, y: height/2 }, // Head start bottom
+    { x: -width/2 + bodyWidth, y: bodyHeight/2 }, // Body end bottom
+    { x: -width/2, y: bodyHeight/2 }, // Body start bottom
   ];
+};
 
+export const createBlockArrow = (position: Position): LogoElement => {
+  const width = 120;
+  const height = 60;
+  
   return {
     id: generateId(),
     type: 'blockArrow',
     position,
-    points,
+    points: calculateBlockArrowPoints(width, height),
     dimensions: { width, height },
     styles: {
       fill: '#3498db',
@@ -405,14 +408,17 @@ export const getElementBounds = (element: LogoElement): { top: number; left: num
   const { position, type } = element;
   
   switch (type) {
-    case 'rectangle':
+    case 'rectangle': {
       const { width = 0, height = 0 } = element.dimensions || {};
+      const halfWidth = width / 2;
+      const halfHeight = height / 2;
       return {
-        top: position.y,
-        left: position.x,
-        right: position.x + width,
-        bottom: position.y + height,
+        top: position.y - halfHeight,
+        left: position.x - halfWidth,
+        right: position.x + halfWidth,
+        bottom: position.y + halfHeight,
       };
+    }
     
     case 'circle':
     case 'hexagon':
@@ -462,12 +468,12 @@ export const getElementBounds = (element: LogoElement): { top: number; left: num
       };
     
     case 'blockArrow':
-      const blockDimensions = (element.dimensions || {}) as { width?: number; height?: number };
+      const { width = 0, height = 0 } = element.dimensions || {};
       return {
-        top: position.y,
-        left: position.x,
-        right: position.x + (blockDimensions.width || 0),
-        bottom: position.y + (blockDimensions.height || 0),
+        top: position.y - height/2,
+        left: position.x - width/2,
+        right: position.x + width/2,
+        bottom: position.y + height/2
       };
     
     case 'cloud': {
@@ -519,9 +525,10 @@ export const isPointInElement = (element: LogoElement, point: Position): boolean
   switch (type) {
     case 'rectangle': {
       const { width = 0, height = 0 } = element.dimensions || {};
-      // Check against the rectangle defined from (0,0) to (width, height)
-      // For rectangles, position (cx, cy) is top-left. Adjust check accordingly.
-      return 0 <= rotatedX && rotatedX <= width && 0 <= rotatedY && rotatedY <= height;
+      const halfWidth = width / 2;
+      const halfHeight = height / 2;
+      // Check against the centered rectangle coordinates
+      return -halfWidth <= rotatedX && rotatedX <= halfWidth && -halfHeight <= rotatedY && rotatedY <= halfHeight;
     }
 
     case 'circle': {
@@ -804,12 +811,7 @@ export const isPointInElement = (element: LogoElement, point: Position): boolean
       const points = element.points || [];
       if (points.length === 0) return false;
 
-      // Transform the point to the element's local coordinate system
-      const localPoint = {
-        x: point.x - position.x,
-        y: point.y - position.y
-      };
-
+      // Points are already in local coordinates relative to center
       // Ray Casting Algorithm (point in polygon test)
       let inside = false;
       for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
@@ -818,8 +820,8 @@ export const isPointInElement = (element: LogoElement, point: Position): boolean
         const xj = points[j].x;
         const yj = points[j].y;
 
-        const intersect = ((yi > localPoint.y) !== (yj > localPoint.y))
-            && (localPoint.x < (xj - xi) * (localPoint.y - yi) / (yj - yi) + xi);
+        const intersect = ((yi > rotatedY) !== (yj > rotatedY))
+            && (rotatedX < (xj - xi) * (rotatedY - yi) / (yj - yi) + xi);
         if (intersect) inside = !inside;
       }
       return inside;
@@ -834,4 +836,161 @@ export const isPointInElement = (element: LogoElement, point: Position): boolean
     default:
       return false;
   }
+}; 
+
+// Helper function to enforce minimum sizes
+const enforceMinSize = (element: LogoElement, newDimensions: any): any => {
+  const minSizes = MIN_SIZES;
+  
+  switch (element.type) {
+    case 'circle':
+      return {
+        ...newDimensions,
+        radius: Math.max(newDimensions.radius, minSizes.CIRCLE.radius)
+      };
+    case 'ellipse':
+      return {
+        ...newDimensions,
+        rx: Math.max(newDimensions.rx, minSizes.ELLIPSE.rx),
+        ry: Math.max(newDimensions.ry, minSizes.ELLIPSE.ry)
+      };
+    case 'text':
+      return {
+        ...newDimensions,
+        width: Math.max(newDimensions.width, minSizes.TEXT.width),
+        height: Math.max(newDimensions.height, minSizes.TEXT.height)
+      };
+    case 'line':
+    case 'arrow':
+    case 'curvedLine':
+      return {
+        ...newDimensions,
+        length: Math.max(newDimensions.length, minSizes.LINE.length)
+      };
+    default:
+      return {
+        ...newDimensions,
+        width: Math.max(newDimensions.width, minSizes.DEFAULT.width),
+        height: Math.max(newDimensions.height, minSizes.DEFAULT.height)
+      };
+  }
+};
+
+// Update element dimensions during resize
+export const updateElementOnResize = (element: LogoElement, handle: string, dx: number, dy: number, preserveAspect = false): LogoElement => {
+  const updatedElement = { ...element };
+  
+  // Calculate angle in radians for rotated elements
+  const angleRad = (element.rotation || 0) * Math.PI / 180;
+  const cos = Math.cos(-angleRad);
+  const sin = Math.sin(-angleRad);
+  
+  // Transform delta to account for rotation
+  const rotatedDx = dx * cos - dy * sin;
+  const rotatedDy = dx * sin + dy * cos;
+
+  switch (element.type) {
+    case 'rectangle':
+    case 'cloud': {
+      const { width = 0, height = 0 } = element.dimensions || {};
+      let newWidth = width;
+      let newHeight = height;
+      
+      // Handle resize based on which handle was dragged
+      switch (handle) {
+        case 'e':
+          newWidth = width + rotatedDx * 2;
+          break;
+        case 'w':
+          newWidth = width - rotatedDx * 2;
+          break;
+        case 'n':
+          newHeight = height - rotatedDy * 2;
+          break;
+        case 's':
+          newHeight = height + rotatedDy * 2;
+          break;
+        case 'ne':
+          newWidth = width + rotatedDx * 2;
+          newHeight = height - rotatedDy * 2;
+          if (preserveAspect) {
+            const ratio = width / height;
+            newHeight = newWidth / ratio;
+          }
+          break;
+        case 'nw':
+          newWidth = width - rotatedDx * 2;
+          newHeight = height - rotatedDy * 2;
+          if (preserveAspect) {
+            const ratio = width / height;
+            newHeight = newWidth / ratio;
+          }
+          break;
+        case 'se':
+          newWidth = width + rotatedDx * 2;
+          newHeight = height + rotatedDy * 2;
+          if (preserveAspect) {
+            const ratio = width / height;
+            newHeight = newWidth / ratio;
+          }
+          break;
+        case 'sw':
+          newWidth = width - rotatedDx * 2;
+          newHeight = height + rotatedDy * 2;
+          if (preserveAspect) {
+            const ratio = width / height;
+            newHeight = newWidth / ratio;
+          }
+          break;
+      }
+      
+      // Enforce minimum sizes
+      const constrained = enforceMinSize(element, { width: newWidth, height: newHeight });
+      updatedElement.dimensions = constrained;
+      break;
+    }
+    
+    case 'circle': {
+      // For circles, only use the larger of dx or dy for uniform scaling
+      const delta = Math.max(Math.abs(rotatedDx), Math.abs(rotatedDy));
+      const newRadius = (element.radius || 0) + (handle.includes('w') || handle.includes('n') ? -delta : delta);
+      const constrained = enforceMinSize(element, { radius: newRadius });
+      updatedElement.radius = constrained.radius;
+      break;
+    }
+    
+    case 'ellipse': {
+      const { rx = 0, ry = 0 } = element;
+      let newRx = rx;
+      let newRy = ry;
+      
+      if (handle.includes('e') || handle.includes('w')) {
+        newRx = rx + (handle.includes('w') ? -rotatedDx : rotatedDx);
+      }
+      if (handle.includes('n') || handle.includes('s')) {
+        newRy = ry + (handle.includes('n') ? -rotatedDy : rotatedDy);
+      }
+      
+      if (preserveAspect) {
+        const ratio = rx / ry;
+        newRy = newRx / ratio;
+      }
+      
+      const constrained = enforceMinSize(element, { rx: newRx, ry: newRy });
+      updatedElement.rx = constrained.rx;
+      updatedElement.ry = constrained.ry;
+      break;
+    }
+    
+    case 'text': {
+      // For text, maintain aspect ratio by default
+      const { fontSize = 24 } = element;
+      const scaleFactor = 1 + (rotatedDx / 100); // Adjust scaling sensitivity
+      const newFontSize = Math.max(fontSize * scaleFactor, 8); // Minimum font size of 8
+      updatedElement.fontSize = newFontSize;
+      break;
+    }
+  }
+  
+  return updatedElement;
 }; 

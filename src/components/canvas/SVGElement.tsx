@@ -31,10 +31,8 @@ const SVGElement: React.FC<SVGElementProps> = ({ element, onResizeStart, onEndpo
   const elementRef = useRef<SVGGraphicsElement>(null);
   const [localBbox, setLocalBbox] = useState<DOMRect | null>(null);
 
-  // --- Transforms based on positioning model ---
+  // Use center-based positioning for all elements
   const centerGroupTransform = `translate(${position.x} ${position.y}) rotate(${rotation})`;
-  const getTopLeftTransform = (w = 0, h = 0) => 
-    `translate(${position.x} ${position.y}) rotate(${rotation} ${w / 2} ${h / 2})`; // Rotate around center of dimensions
   const relativeCoords = { x: 0, y: 0 }; 
 
   // --- Style Merging --- 
@@ -45,27 +43,33 @@ const SVGElement: React.FC<SVGElementProps> = ({ element, onResizeStart, onEndpo
     : {}; 
 
   const finalStyles = { ...styles, ...selectedStyle };
-  // Ensure lines/curves/arrows have fill='none'
   const finalLineStyles = { ...styles, fill: 'none', ...selectedStyle }; 
 
   // --- BBox Calculation --- 
   useLayoutEffect(() => {
     const canHaveResizeHandles = !['line', 'arrow', 'curvedLine'].includes(type);
-    const needsResizeHandles = element.selected && !element.locked && onResizeStart && canHaveResizeHandles;
-    
-    // Only calculate BBox if needed for resize handles and ref is attached
-    if (needsResizeHandles && elementRef.current) { 
-        try {
-            const bbox = elementRef.current.getBBox();
-            setLocalBbox(bbox);
-        } catch (e) { 
-            console.error("Error getting BBox:", e);
-            setLocalBbox(null);
+    if (element.selected && elementRef.current) {
+      try { 
+        const rawBBox = elementRef.current.getBBox();
+        
+        if (type === 'blockArrow') {
+          const { width = 0, height = 0 } = element.dimensions || {};
+          setLocalBbox(new DOMRect(-width/2, -height/2, width, height));
+        } else if (type === 'text') {
+          const halfWidth = rawBBox.width / 2;
+          const halfHeight = rawBBox.height / 2;
+          setLocalBbox(new DOMRect(-halfWidth, -halfHeight, rawBBox.width, rawBBox.height));
+        } else {
+          setLocalBbox(rawBBox);
         }
+      } catch (e) { 
+        console.error("Error getting BBox:", e);
+        setLocalBbox(null);
+      }
     } else {
       setLocalBbox(null);
     }
-  }, [element, onResizeStart, type]); // Added type dependency
+  }, [element, onResizeStart, type, rotation]);
 
   // --- Render Functions --- 
   const renderEndpointHandles = (points: Position[], isRelative = false) => {
@@ -110,29 +114,26 @@ const SVGElement: React.FC<SVGElementProps> = ({ element, onResizeStart, onEndpo
 
   const renderElementContent = () => {
     switch (type) {
-      // --- Top-Left Positioned --- 
       case 'rectangle': { 
         const { width = 0, height = 0 } = element.dimensions || {};
         return (
-          // Use type assertion `as any` for the ref
-          <rect 
-            ref={elementRef as any} 
-            x={position.x} y={position.y}
-            width={width} height={height}
-            {...finalStyles}
-            transform={`rotate(${rotation} ${position.x + width / 2} ${position.y + height / 2})`} 
-          />
+          <g ref={elementRef as any} transform={centerGroupTransform}>
+            <rect 
+              x={-width / 2} y={-height / 2}
+              width={width} height={height}
+              {...finalStyles}
+            />
+          </g>
         );
       }
       case 'blockArrow': { 
-        const { points = [], dimensions } = element;
+        const { points = [] } = element;
         if (points.length === 0) return null;
-        const { width = 0, height = 0 } = dimensions || {};
+        // Points are already centered, just join them
         const pointsStr = points.map(p => `${p.x},${p.y}`).join(' ');
         return (
-          // Use type assertion `as any` for the ref
-          <g ref={elementRef as any} transform={getTopLeftTransform(width, height)}>
-              <polygon points={pointsStr} {...finalStyles} />
+          <g ref={elementRef as any} transform={centerGroupTransform}>
+            <polygon points={pointsStr} {...finalStyles} />
           </g>
         );
       }
@@ -140,11 +141,14 @@ const SVGElement: React.FC<SVGElementProps> = ({ element, onResizeStart, onEndpo
         const { pathData = '', dimensions } = element;
         if (!pathData) return null;
         const { width = 0, height = 0 } = dimensions || {};
+        // Transform pathData to be centered
+        const transformedPathData = pathData.replace(/([0-9.-]+),([0-9.-]+)/g, (_, x, y) => 
+          `${parseFloat(x) - width/2},${parseFloat(y) - height/2}`
+        );
         return (
-            // Use type assertion `as any` for the ref
-            <g ref={elementRef as any} transform={getTopLeftTransform(width, height)}>
-                 <path d={pathData} {...finalStyles} />
-            </g>
+          <g ref={elementRef as any} transform={centerGroupTransform}>
+            <path d={transformedPathData} {...finalStyles} />
+          </g>
         );
       }
 
@@ -169,8 +173,8 @@ const SVGElement: React.FC<SVGElementProps> = ({ element, onResizeStart, onEndpo
                     return <ellipse cx={relativeCoords.x} cy={relativeCoords.y} rx={rx} ry={ry} {...finalStyles} />;
                } else if (type === 'text') {
                     const { content = '', fontFamily = 'Arial', fontSize = 24 } = element;
-                    // NOTE: Attaching ref directly to <text> might be needed if bbox issues arise
-                    return <text x={relativeCoords.x} y={relativeCoords.y} fontFamily={fontFamily} fontSize={fontSize} dominantBaseline="middle" textAnchor="middle" {...finalStyles}>{content}</text>;
+                    // Render text with base styles only, selection highlight will be a separate rect
+                    return <text x={relativeCoords.x} y={relativeCoords.y} fontFamily={fontFamily} fontSize={fontSize} dominantBaseline="middle" textAnchor="middle" {...styles}>{content}</text>;
                } else { // Polygons/Stars
                     const pointsStr = getPolygonPoints(type, element);
                     if (!pointsStr) return null;
@@ -245,25 +249,38 @@ const SVGElement: React.FC<SVGElementProps> = ({ element, onResizeStart, onEndpo
   const showResizeHandles = element.selected && !element.locked && onResizeStart && localBbox && 
                             !['line', 'arrow', 'curvedLine'].includes(type); 
   
-  // Determine correct transform for resize handles based on element positioning model
-  const resizeHandleTransform = ['rectangle', 'blockArrow', 'cloud'].includes(type)
-      ? getTopLeftTransform(element.dimensions?.width, element.dimensions?.height)
-      : centerGroupTransform; 
-
   return (
     <>
-      {renderElementContent()} 
-      {showResizeHandles && localBbox && (
-        <ResizeHandles 
-          bbox={localBbox} 
-          transform={resizeHandleTransform}
-          onResizeStart={onResizeStart} 
+      {renderElementContent()}
+      {showResizeHandles && (
+        <ResizeHandles
+          bbox={localBbox}
+          transform={centerGroupTransform}
+          elementType={type}
+          onResizeStart={onResizeStart}
         />
       )}
       {/* Optional: Locked indicator */}
       {element.selected && element.locked && (
           <g transform={centerGroupTransform}> {/* Assuming centered lock icon is fine */}
               <text x={relativeCoords.x} y={relativeCoords.y - 10} fontSize="10" textAnchor="middle" fill="red">🔒</text>
+          </g>
+      )}
+
+      {/* Selection highlight for TEXT elements using a bounding box */}
+      {element.selected && type === 'text' && localBbox && (
+          <g transform={centerGroupTransform}>
+              <rect
+                  x={localBbox.x}
+                  y={localBbox.y}
+                  width={localBbox.width}
+                  height={localBbox.height}
+                  fill="none"
+                  strokeWidth={selectedStyle.strokeWidth} // Use calculated selected stroke width
+                  stroke={selectedStyle.stroke}           // Use calculated selected stroke color
+                  strokeDasharray={selectedStyle.strokeDasharray} // Use calculated dash array
+                  vectorEffect="non-scaling-stroke" // Keep this effect
+              />
           </g>
       )}
     </>
