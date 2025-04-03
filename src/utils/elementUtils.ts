@@ -427,15 +427,22 @@ export const getElementBounds = (element: LogoElement): { top: number; left: num
       };
     
     case 'text':
-      // Approximating text bounds
+      // Approximating text bounds based on position being the CENTER
       const fontSize = element.fontSize || 24;
       const content = element.content || '';
-      const approximateWidth = content.length * (fontSize * 0.6);
+      // Keep the rough width estimate, but use it relative to the center
+      const approximateWidth = content.length * (fontSize * 0.6); 
+      // Approximate height based on font size
+      const approximateHeight = fontSize; 
+
+      const halfWidth = approximateWidth / 2;
+      const halfHeight = approximateHeight / 2;
+
       return {
-        top: position.y - fontSize,
-        left: position.x,
-        right: position.x + approximateWidth,
-        bottom: position.y + 5,
+        top: position.y - halfHeight,
+        left: position.x - halfWidth,
+        right: position.x + halfWidth,
+        bottom: position.y + halfHeight,
       };
     
     case 'path':
@@ -477,6 +484,18 @@ export const getElementBounds = (element: LogoElement): { top: number; left: num
       return { top: position.y, left: position.x, right: position.x, bottom: position.y };
   }
 };
+
+// Create a static canvas context for text measurement to avoid recreating it constantly
+let offscreenCanvas: HTMLCanvasElement | null = null;
+let offscreenContext: CanvasRenderingContext2D | null = null;
+
+function getTextMeasurementContext(): CanvasRenderingContext2D | null {
+  if (!offscreenContext) {
+    offscreenCanvas = document.createElement('canvas');
+    offscreenContext = offscreenCanvas.getContext('2d');
+  }
+  return offscreenContext;
+}
 
 // Check if a point is inside an element (for selection), considering rotation
 export const isPointInElement = (element: LogoElement, point: Position): boolean => {
@@ -655,12 +674,40 @@ export const isPointInElement = (element: LogoElement, point: Position): boolean
     }
 
     case 'text': {
+      const context = getTextMeasurementContext();
+      if (!context) {
+        // Fallback to rough estimation if context failed (shouldn't normally happen)
+        console.error("Failed to get 2D context for text measurement");
+        const fontSize = element.fontSize || 24;
+        const content = element.content || '';
+        const approximateWidth = content.length * (fontSize * 0.6);
+        const approximateHeight = fontSize;
+        const halfWidth = approximateWidth / 2;
+        const halfHeight = approximateHeight / 2;
+        return (rotatedX >= -halfWidth && rotatedX <= halfWidth && rotatedY >= -halfHeight && rotatedY <= halfHeight);
+      }
+
       const fontSize = element.fontSize || 24;
+      const fontFamily = element.fontFamily || 'Arial';
       const content = element.content || '';
-      const approximateWidth = content.length * (fontSize * 0.6);
-      // Check relative to text anchor (0,0 in rotated frame)
-      // Using approximate bounds: [0, width] horizontally, [-fontSize, 5] vertically
-      return 0 <= rotatedX && rotatedX <= approximateWidth && -fontSize <= rotatedY && rotatedY <= 5;
+      
+      // Set font for measurement
+      context.font = `${fontSize}px ${fontFamily}`;
+      
+      // Measure the actual text width
+      const measuredWidth = context.measureText(content).width;
+      
+      // Use fontSize as approximate height (accurate height measurement is more complex)
+      const approximateHeight = fontSize; 
+
+      const halfWidth = measuredWidth / 2;
+      const halfHeight = approximateHeight / 2; // Using fontSize for height approximation
+
+      // Check if the rotated point (relative to the center) falls within the measured bounds
+      return (
+        rotatedX >= -halfWidth && rotatedX <= halfWidth &&
+        rotatedY >= -halfHeight && rotatedY <= halfHeight 
+      );
     }
 
     case 'path': {

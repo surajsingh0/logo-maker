@@ -9,4 +9,27 @@
 
 .resize-handle:hover {
   fill: #2196f3;
+}
+
+.line-endpoint-handle {
+  pointer-events: all;
+  user-select: none;
+  fill: white;
+  stroke: #2196f3;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.line-endpoint-handle:hover {
+  fill: #2196f3;
+}
+
+.line-endpoint-handle.control {
+  fill: white;
+  stroke: #2196f3;
+  stroke-width: 1;
+}
+
+.line-endpoint-handle.control:hover {
+  fill: #2196f3;
 } 

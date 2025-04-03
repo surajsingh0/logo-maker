@@ -1,8 +1,8 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { LogoElement, Position, Dimensions } from '../../types';
+import React, { useRef, useState, useEffect } from 'react';
+import { LogoElement, Position } from '../../types';
 import SVGElement from './SVGElement';
 import Grid from './Grid';
-import { isPointInElement } from '../../utils/elementUtils';
+import { getElementBounds } from '../../utils/elementUtils';
 import './Canvas.css';
 
 interface CanvasProps {
@@ -33,6 +33,11 @@ interface MovingPointInfo {
   pointIndex: number;
   initialMousePos: Position;
 }
+
+// Tolerance for snapping to center guides (in canvas units)
+const CENTERING_TOLERANCE = 3;
+
+type ElementBounds = { top: number; left: number; right: number; bottom: number } | null;
 
 const Canvas: React.FC<CanvasProps> = ({
   elements,
@@ -65,6 +70,8 @@ const Canvas: React.FC<CanvasProps> = ({
   const [marqueeEndPos, setMarqueeEndPos] = useState<Position | null>(null);
   const [isDraggingMultiple, setIsDraggingMultiple] = useState<boolean>(false);
   const [controlsStyle, setControlsStyle] = useState({ bottom: '16px', right: '16px' });
+  const [showVerticalGuide, setShowVerticalGuide] = useState<number | null>(null);
+  const [showHorizontalGuide, setShowHorizontalGuide] = useState<number | null>(null);
 
   useEffect(() => {
     const selectedElement = elements.find(el => el.selected);
@@ -126,12 +133,12 @@ const Canvas: React.FC<CanvasProps> = ({
   };
 
   const handleZoomIn = () => {
-    const newZoom = Math.min(2, zoomLevel + 0.1);
+    const newZoom = Math.min(4, zoomLevel + 0.1);
     onZoomChange(newZoom);
   };
 
   const handleZoomOut = () => {
-    const newZoom = Math.max(0.5, zoomLevel - 0.1);
+    const newZoom = Math.max(0.1, zoomLevel - 0.1);
     onZoomChange(newZoom);
   };
 
@@ -139,13 +146,77 @@ const Canvas: React.FC<CanvasProps> = ({
     onZoomChange(1);
   };
 
+  const getCenterFromBounds = (bounds: NonNullable<ElementBounds>): Position => {
+    return {
+      x: (bounds.left + bounds.right) / 2,
+      y: (bounds.top + bounds.bottom) / 2
+    };
+  };
+
+  const doBoundsIntersect = (bounds1: ElementBounds, bounds2: ElementBounds): boolean => {
+    if (!bounds1 || !bounds2) return false;
+    return (
+      bounds1.left < bounds2.right &&
+      bounds1.right > bounds2.left &&
+      bounds1.top < bounds2.bottom &&
+      bounds1.bottom > bounds2.top
+    );
+  };
+
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!canvasRef.current) return;
     
     const currentMousePos = getCanvasCoordinates(e);
-    
+    let currentVerticalGuide: number | null = null;
+    let currentHorizontalGuide: number | null = null;
+
+    const calculateAndSetGuides = (activeId: string, potentialBounds: ElementBounds) => {
+        if (!potentialBounds) {
+            return;
+        }
+
+        const activeCenter = getCenterFromBounds(potentialBounds);
+        let targetX = canvasWidth / 2; 
+        let targetY = canvasHeight / 2; 
+        let relativeTargetFound = false;
+
+        let closestCenterDistSq = Infinity; 
+        let closestTargetCenter: Position | null = null;
+
+        // Check against other elements
+        elements.forEach(el => {
+            if (el.id === activeId || el.locked) return;
+            const elBounds = getElementBounds(el);
+            if (elBounds && doBoundsIntersect(potentialBounds, elBounds)) {
+                const elCenter = getCenterFromBounds(elBounds);
+                const dxCenter = activeCenter.x - elCenter.x;
+                const dyCenter = activeCenter.y - elCenter.y;
+                const distSq = dxCenter * dxCenter + dyCenter * dyCenter;
+                if (distSq < closestCenterDistSq) {
+                    closestCenterDistSq = distSq;
+                    closestTargetCenter = elCenter;
+                    relativeTargetFound = true;
+                }
+            }
+        });
+
+        if (relativeTargetFound && closestTargetCenter) {
+            targetX = (closestTargetCenter as Position).x;
+            targetY = (closestTargetCenter as Position).y;
+        }
+
+        // Check for vertical alignment
+        if (Math.abs(activeCenter.x - targetX) < CENTERING_TOLERANCE / zoomLevel) {
+            currentVerticalGuide = targetX;
+        }
+        // Check for horizontal alignment
+        if (Math.abs(activeCenter.y - targetY) < CENTERING_TOLERANCE / zoomLevel) {
+            currentHorizontalGuide = targetY;
+        }
+    };
+
     if (isMovingEndpoint && movingPointInfo) {
-      const { elementId, pointIndex } = movingPointInfo;
+      const { elementId } = movingPointInfo;
       
       const element = elements.find(el => el.id === elementId);
       
@@ -160,9 +231,9 @@ const Canvas: React.FC<CanvasProps> = ({
           const localX = dx * cosAngle - dy * sinAngle;
           const localY = dx * sinAngle + dy * cosAngle;
           const newLocalPosition: Position = { x: localX, y: localY };
-          onElementPointUpdate(elementId, pointIndex, newLocalPosition);
+          onElementPointUpdate(elementId, movingPointInfo.pointIndex, newLocalPosition);
         } else {
-          onElementPointUpdate(elementId, pointIndex, currentMousePos);
+          onElementPointUpdate(elementId, movingPointInfo.pointIndex, currentMousePos);
         }
       }
     }
@@ -220,7 +291,7 @@ const Canvas: React.FC<CanvasProps> = ({
           const scaleX = newWidth / initialDimensions.width;
           const scaleY = newHeight / initialDimensions.height;
           
-          const pathCommands = initialElementState.pathData?.match(/[A-Z][^A-Z]*/g) || [];
+          const pathCommands = initialElementState.pathData?.match(/[A-Z][^A-Za-z]*/g) || [];
           const scaledCommands = pathCommands.map(cmd => {
             const command = cmd[0];
             const coords = cmd.slice(1).trim().split(/[\s,]+/).map(Number);
@@ -405,6 +476,9 @@ const Canvas: React.FC<CanvasProps> = ({
       }
 
       if (Object.keys(update).length > 0) {
+         const potentialElementState = { ...initialElementState, ...update };
+         const potentialBounds = getElementBounds(potentialElementState);
+         calculateAndSetGuides(activeElementId, potentialBounds);
          onElementResize(activeElementId, update);
       }
 
@@ -429,20 +503,28 @@ const Canvas: React.FC<CanvasProps> = ({
           x: point.x + dx,
           y: point.y + dy
         }));
-        onElementDrag(activeElementId, {
-          position: { x: selectedElement.position.x + dx, y: selectedElement.position.y + dy },
-          points: newPoints
-        });
+        const newPosition = { x: selectedElement.position.x + dx, y: selectedElement.position.y + dy };
+        const potentialElementState = { ...selectedElement, position: newPosition, points: newPoints };
+        const potentialBounds = getElementBounds(potentialElementState);
+        calculateAndSetGuides(activeElementId, potentialBounds);
+        onElementDrag(activeElementId, { position: newPosition, points: newPoints });
+        setDragStartPos(currentMousePos);
       } else {
-        onElementDrag(activeElementId, {
-          position: { x: selectedElement.position.x + dx, y: selectedElement.position.y + dy }
-        });
+        const newPosition = { x: selectedElement.position.x + dx, y: selectedElement.position.y + dy };
+        const potentialElementState = { ...selectedElement, position: newPosition };
+        const potentialBounds = getElementBounds(potentialElementState);
+        calculateAndSetGuides(activeElementId, potentialBounds);
+        onElementDrag(activeElementId, { position: newPosition });
+        setDragStartPos(currentMousePos);
       }
-      setDragStartPos(currentMousePos);
     }
     else if (isMarqueeSelecting && marqueeStartPos) {
        setMarqueeEndPos(currentMousePos);
     }
+
+    // Update the actual guide state after calculations
+    setShowVerticalGuide(currentVerticalGuide);
+    setShowHorizontalGuide(currentHorizontalGuide);
   };
 
   const handleMouseUp = () => {
@@ -477,26 +559,22 @@ const Canvas: React.FC<CanvasProps> = ({
     setMarqueeStartPos(null);
     setMarqueeEndPos(null);
     setIsDraggingMultiple(false);
+    setDragStartPos({ x: 0, y: 0 });
+
+    // Reset centering guides
+    setShowVerticalGuide(null);
+    setShowHorizontalGuide(null);
   };
 
   const handleMouseLeave = () => {
     if (isResizing || isDragging || isMovingEndpoint || isMarqueeSelecting || isDraggingMultiple) {
-       setIsDragging(false);
-       setIsResizing(false);
-       setResizeHandle(null);
-       setResizeStartState(null);
-       setIsMovingEndpoint(false);
-       setMovingPointInfo(null);
-       setIsMarqueeSelecting(false);
-       setMarqueeStartPos(null);
-       setMarqueeEndPos(null);
-       setIsDraggingMultiple(false);
+       handleMouseUp();
     }
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if ((e.target as SVGElement).classList?.contains('resize-handle') || 
-        (e.target as SVGElement).classList?.contains('line-endpoint-handle')) {
+    if ((e.target as SVGElement).closest('.resize-handle') || 
+        (e.target as SVGElement).closest('.line-endpoint-handle')) {
        return; 
     }
     
@@ -571,31 +649,18 @@ const Canvas: React.FC<CanvasProps> = ({
     }
   };
 
-  const selectElementAtPosition = useCallback((position: Position) => {
-    // Check elements in reverse order (top to bottom in z-index)
-    for (let i = elements.length - 1; i >= 0; i--) {
-      const element = elements[i];
-      if (isPointInElement(element, position) && !element.locked) {
-        setActiveElementId(element.id);
-        return element.id;
-      }
-    }
-    
-    // No element found at position
-    setActiveElementId(null);
-    return null;
-  }, [elements, setActiveElementId]);
-
   return (
     <>
       <div 
         ref={canvasRef}
         className="canvas-container"
         style={{ 
-          width: canvasWidth,
-          height: canvasHeight,
-          transform: `scale(${zoomLevel})`,
+          width: canvasWidth * zoomLevel,
+          height: canvasHeight * zoomLevel,
+          cursor: isDragging || isDraggingMultiple ? 'grabbing' : isResizing ? 'crosshair' : 'default',
           background,
+          overflow: 'hidden',
+          position: 'relative'
         }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
@@ -603,14 +668,21 @@ const Canvas: React.FC<CanvasProps> = ({
         onMouseLeave={handleMouseLeave}
       >
         {showGrid && (
-          <Grid width={canvasWidth} height={canvasHeight} gridSize={gridSize} />
+          <div style={{ position: 'absolute', top: 0, left: 0, width: canvasWidth, height: canvasHeight, transform: `scale(${zoomLevel})`, transformOrigin: 'top left', pointerEvents: 'none' }}>
+            <Grid width={canvasWidth} height={canvasHeight} gridSize={gridSize} />
+          </div>
         )}
         
         <svg 
           width={canvasWidth} 
           height={canvasHeight} 
           viewBox={`0 0 ${canvasWidth} ${canvasHeight}`}
-          style={{ overflow: 'visible' }}
+          style={{ 
+            display: 'block',
+            transform: `scale(${zoomLevel})`,
+            transformOrigin: 'top left',
+            overflow: 'visible'
+          }}
         >
           {elements.map(element => (
             <SVGElement 
@@ -627,15 +699,44 @@ const Canvas: React.FC<CanvasProps> = ({
               y={Math.min(marqueeStartPos.y, marqueeEndPos.y)}
               width={Math.abs(marqueeStartPos.x - marqueeEndPos.x)}
               height={Math.abs(marqueeStartPos.y - marqueeEndPos.y)}
-              fill="rgba(33, 150, 243, 0.08)"
+              fill="rgba(33, 150, 243, 0.1)"
               stroke="#2196f3"
-              strokeWidth={1.5 / zoomLevel}
-              strokeDasharray="4 2"
+              strokeWidth={1 / zoomLevel}
+              strokeDasharray={`${4 / zoomLevel} ${2 / zoomLevel}`}
               vectorEffect="non-scaling-stroke"
               rx={2 / zoomLevel}
               ry={2 / zoomLevel}
+              style={{ pointerEvents: 'none' }}
             />
           )}
+
+          {showVerticalGuide !== null && (
+              <line 
+                  x1={showVerticalGuide}
+                  y1={0}
+                  x2={showVerticalGuide}
+                  y2={canvasHeight}
+                  stroke="#FF00FF"
+                  strokeWidth={1}
+                  strokeDasharray="4 2" 
+                  vectorEffect="non-scaling-stroke"
+                  style={{ pointerEvents: 'none' }}
+              />
+          )}
+          {showHorizontalGuide !== null && (
+              <line 
+                  x1={0}
+                  y1={showHorizontalGuide}
+                  x2={canvasWidth}
+                  y2={showHorizontalGuide}
+                  stroke="#FF00FF"
+                  strokeWidth={1}
+                  strokeDasharray="4 2" 
+                  vectorEffect="non-scaling-stroke"
+                  style={{ pointerEvents: 'none' }}
+              />
+          )}
+
         </svg>
       </div>
 
